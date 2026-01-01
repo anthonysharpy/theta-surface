@@ -1,129 +1,134 @@
-use std::{future, ops::Index};
-
 use rust_decimal::Decimal;
 
-#[derive(serde::Deserialize)]
+#[derive(PartialEq)]
+pub enum OptionType {
+    Call = 1,
+    Put = 2,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct TickSizeStep {
-    tick_size: Decimal,
-    above_price: Decimal,
+    pub tick_size: Decimal,
+    pub above_price: Decimal,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct TickerStats {
-    high: Option<Decimal>,
-    low: Option<Decimal>,
-    price_change: Option<Decimal>,
-    volume: Decimal,
-    volume_usd: Decimal,
+    pub high: Option<Decimal>,
+    pub low: Option<Decimal>,
+    pub price_change: Option<Decimal>,
+    pub volume: Decimal,
+    pub volume_usd: Decimal,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct TickerGreeks {
-    theta: Decimal,
-    delta: Decimal,
-    gamma: Decimal,
-    vega: Decimal,
-    rho: Decimal,
+    pub theta: Decimal,
+    pub delta: Decimal,
+    pub gamma: Decimal,
+    pub vega: Decimal,
+    pub rho: Decimal,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct TickerData {
-    timestamp: u64,
-    state: Box<str>,
-    stats: TickerStats,
-    greeks: TickerGreeks,
-    index_price: Decimal,
-    instrument_name: Box<str>,
-    last_price: Option<Decimal>,
-    min_price: Decimal,
-    max_price: Decimal,
-    open_interest: Decimal,
-    mark_price: Decimal,
-    best_ask_price: Decimal,
-    best_bid_price: Decimal,
-    interest_rate: Decimal,
-    mark_iv: Decimal,
-    bid_iv: Decimal,
-    ask_iv: Decimal,
-    underlying_price: Decimal,
-    underlying_index: Box<str>,
-    estimated_delivery_price: Decimal,
-    best_ask_amount: Decimal,
-    best_bid_amount: Decimal,
-    delivery_price: Option<Decimal>,
+    pub timestamp: u64,
+    pub state: Box<str>,
+    pub stats: TickerStats,
+    pub greeks: Option<TickerGreeks>,
+    pub index_price: Decimal,
+    pub instrument_name: Box<str>,
+    pub last_price: Option<Decimal>,
+    pub min_price: Decimal,
+    pub max_price: Decimal,
+    pub open_interest: Decimal,
+    pub mark_price: Decimal,
+    pub best_ask_price: Decimal,
+    pub best_bid_price: Decimal,
+    pub interest_rate: Option<Decimal>,
+    pub mark_iv: Option<Decimal>,
+    pub bid_iv: Option<Decimal>,
+    pub ask_iv: Option<Decimal>,
+    pub underlying_price: Option<Decimal>,
+    pub underlying_index: Option<Box<str>>,
+    pub estimated_delivery_price: Decimal,
+    pub best_ask_amount: Decimal,
+    pub best_bid_amount: Decimal,
+    pub delivery_price: Option<Decimal>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct FutureInstrument {
     pub ticker_data: Option<TickerData>,
-    // price_index: Box<str>,
-    // kind: Box<str>,
+    pub price_index: Box<str>,
+    pub kind: Box<str>,
     pub instrument_name: Box<str>,
-    // max_leverage: i32,
-    // maker_commission: Decimal,
-    // taker_commission: Decimal,
-    // instrument_type: Box<str>,
-    // expiration_timestamp: u32,
-    // creation_timestamp: u32,
-    // is_active: bool,
-    // tick_size: Decimal,
-    // contract_size: u32,
-    // instrument_id: u32,
-    // min_trade_amount: u32,
-    // future_type: Box<str>,
-    // max_liquidation_commission: Decimal,
-    // max_non_default_leverage: u32,
-    // block_trade_commission: Decimal,
-    // block_trade_min_trade_amount: u32,
-    // block_trade_tick_size: Decimal,
-    // settlement_currency: Box<str>,
-    // settlement_period: Box<str>,
-    // base_currency: Box<str>,
-    // counter_currency: Box<str>,
-    // quote_currency: Box<str>,
-    // tick_size_steps: Vec<TickSizeStep>,
+    pub max_leverage: Decimal,
+    pub maker_commission: Decimal,
+    pub taker_commission: Decimal,
+    pub instrument_type: Box<str>,
+    pub expiration_timestamp: u64,
+    pub creation_timestamp: u64,
+    pub is_active: bool,
+    pub tick_size: Decimal,
+    pub contract_size: Decimal,
+    pub instrument_id: u32,
+    pub min_trade_amount: Decimal,
+    pub future_type: Box<str>,
+    pub max_liquidation_commission: Decimal,
+    pub max_non_default_leverage: Decimal,
+    pub block_trade_commission: Decimal,
+    pub block_trade_min_trade_amount: Decimal,
+    pub block_trade_tick_size: Decimal,
+    pub settlement_currency: Box<str>,
+    pub settlement_period: Box<str>,
+    pub base_currency: Box<str>,
+    pub counter_currency: Box<str>,
+    pub quote_currency: Box<str>,
+    pub tick_size_steps: Vec<TickSizeStep>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct IndexPrice {
-    // estimated_delivery_price: Decimal,
-    // index_price: Decimal,
+    pub estimated_delivery_price: Decimal,
+    pub index_price: Decimal,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct OptionInstrument {
-    // pub price_index: Box<str>,
-    // pub kind: Box<str>,
+    pub price_index: Box<str>,
+    pub kind: Box<str>,
     pub ticker_data: Option<TickerData>,
     pub instrument_name: Box<str>,
-    // pub maker_commission: Decimal,
-    // pub taker_commission: Decimal,
-    // pub instrument_type: Box<str>,
-    // pub expiration_timestamp: u32,
-    // pub creation_timestamp: u32,
-    // pub is_active: bool,
-    // pub tick_size: Decimal,
-    // pub contract_size: Decimal,
-    // pub strike: Decimal,
-    // pub instrument_id: u32,
-    // pub min_trade_amount: Decimal,
-    // pub option_type: Box<str>,
-    // pub block_trade_commission: Decimal,
-    // pub block_trade_min_trade_amount: i32,
-    // pub block_trade_tick_size: Decimal,
-    // pub settlement_currency: Box<str>,
-    // pub settlement_period: Box<str>,
-    // pub base_currency: Box<str>,
-    // pub counter_currency: Box<str>,
-    // pub quote_currency: Box<str>,
-    // pub tick_size_steps: Vec<TickSizeStep>,
+    pub maker_commission: Decimal,
+    pub taker_commission: Decimal,
+    pub instrument_type: Box<str>,
+    pub expiration_timestamp: u64,
+    pub creation_timestamp: u64,
+    pub is_active: bool,
+    pub tick_size: Decimal,
+    pub contract_size: Decimal,
+    pub strike: Decimal,
+    pub instrument_id: u32,
+    pub min_trade_amount: Decimal,
+    pub option_type: Box<str>,
+    pub block_trade_commission: Decimal,
+    pub block_trade_min_trade_amount: Decimal,
+    pub block_trade_tick_size: Decimal,
+    pub settlement_currency: Box<str>,
+    pub settlement_period: Box<str>,
+    pub base_currency: Box<str>,
+    pub counter_currency: Box<str>,
+    pub quote_currency: Box<str>,
+    pub tick_size_steps: Vec<TickSizeStep>,
 }
 
 /**
- * A simple place to store all the data - this will make it easy to save and load it from file.
+ * A simple place to store all the data - this will make it easy to save and load from file.
  */
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct DataContainer {
     pub futures: Vec<FutureInstrument>,
     pub options: Vec<OptionInstrument>,
-    pub index_price: IndexPrice
+    pub index_price: IndexPrice,
 }
