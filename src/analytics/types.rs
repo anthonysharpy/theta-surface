@@ -1,6 +1,6 @@
 use rust_decimal::Decimal;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum OptionType {
     Call = 1,
     Put = 2,

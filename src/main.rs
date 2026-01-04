@@ -1,6 +1,7 @@
 mod analytics;
 mod fileio;
 mod network;
+mod types;
 
 use analytics::DataContainer;
 use analytics::FutureInstrument;
