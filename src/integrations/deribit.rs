@@ -1,4 +1,8 @@
+use chrono::DateTime;
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
+
+use crate::analytics::{OptionInstrument, OptionType};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DeribitTickSizeStep {
@@ -115,6 +119,26 @@ pub struct DeribitOptionInstrument {
     pub counter_currency: Box<str>,
     pub quote_currency: Box<str>,
     pub tick_size_steps: Vec<DeribitTickSizeStep>,
+}
+
+impl DeribitOptionInstrument {
+    pub fn to_option(&self) -> OptionInstrument {
+        let ticker_data = self.ticker_data.as_ref().unwrap();
+        let greeks = self.ticker_data.as_ref().unwrap().greeks.as_ref().unwrap();
+
+        OptionInstrument {
+            expiration: DateTime::from_timestamp_millis(self.expiration_timestamp.try_into().unwrap()).unwrap(),
+            strike: self.strike.to_f64().unwrap(),
+            instrument_id: self.instrument_id.to_string().into_boxed_str(),
+            option_type: OptionType::from_string(&self.option_type),
+            spot_price: ticker_data.index_price.to_f64().unwrap(),
+            external_theta: greeks.theta.to_f64().unwrap(),
+            external_delta: greeks.delta.to_f64().unwrap(),
+            external_gamma: greeks.gamma.to_f64().unwrap(),
+            external_vega: greeks.vega.to_f64().unwrap(),
+            external_rho: greeks.rho.to_f64().unwrap(),
+        }
+    }
 }
 
 /**

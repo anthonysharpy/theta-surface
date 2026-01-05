@@ -11,6 +11,8 @@ async fn main() {
 
     if args.iter().any(|a| a == "fetch-market-data") {
         routines::fetch_market_data().await
+    } else if args.iter().any(|a| a == "build-surface") {
+        routines::build_surface();
     } else {
         routines::help();
     }
