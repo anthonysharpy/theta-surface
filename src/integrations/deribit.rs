@@ -2,7 +2,10 @@ use chrono::DateTime;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
-use crate::analytics::{OptionInstrument, OptionType};
+use crate::{
+    analytics::{OptionInstrument, OptionType},
+    types::UnusableAPIDataError,
+};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DeribitTickSizeStep {
@@ -122,22 +125,39 @@ pub struct DeribitOptionInstrument {
 }
 
 impl DeribitOptionInstrument {
-    pub fn to_option(&self) -> OptionInstrument {
+    pub fn to_option(&self) -> Result<OptionInstrument, UnusableAPIDataError> {
         let ticker_data = self.ticker_data.as_ref().unwrap();
         let greeks = self.ticker_data.as_ref().unwrap().greeks.as_ref().unwrap();
 
-        OptionInstrument {
-            expiration: DateTime::from_timestamp_millis(self.expiration_timestamp.try_into().unwrap()).unwrap(),
-            strike: self.strike.to_f64().unwrap(),
-            instrument_id: self.instrument_id.to_string().into_boxed_str(),
-            option_type: OptionType::from_string(&self.option_type),
-            spot_price: ticker_data.index_price.to_f64().unwrap(),
-            external_theta: greeks.theta.to_f64().unwrap(),
-            external_delta: greeks.delta.to_f64().unwrap(),
-            external_gamma: greeks.gamma.to_f64().unwrap(),
-            external_vega: greeks.vega.to_f64().unwrap(),
-            external_rho: greeks.rho.to_f64().unwrap(),
-        }
+        let price = match ticker_data.last_price.is_some() {
+            true => ticker_data.last_price.unwrap().to_f64().unwrap(),
+            false => {
+                let bid_range = (ticker_data.best_ask_price - ticker_data.best_bid_price).to_f64().unwrap();
+
+                // todo - document/explain this better. is this a good amount?
+                // if bid range <= 1 then assume average is price.
+                if bid_range > 1.0 {
+                    return Err(UnusableAPIDataError);
+                }
+
+                (ticker_data.best_ask_price + ticker_data.best_bid_price).to_f64().unwrap() * 0.5
+            }
+        };
+
+        Ok(OptionInstrument::new(
+            price,
+            DateTime::from_timestamp_millis(self.expiration_timestamp.try_into().unwrap()).unwrap(),
+            self.strike.to_f64().unwrap(),
+            self.instrument_id.to_string().into_boxed_str(),
+            OptionType::from_string(&self.option_type),
+            ticker_data.index_price.to_f64().unwrap(),
+            greeks.theta.to_f64().unwrap(),
+            greeks.delta.to_f64().unwrap(),
+            greeks.gamma.to_f64().unwrap(),
+            greeks.vega.to_f64().unwrap(),
+            greeks.rho.to_f64().unwrap(),
+            ticker_data.underlying_price.unwrap().to_f64().unwrap(),
+        ))
     }
 }
 

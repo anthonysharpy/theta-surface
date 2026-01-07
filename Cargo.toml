@@ -4,11 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-tokio   = { version = "1", features = ["macros", "rt-multi-thread"] }
+reqwest = { version = "0.12.28", features = ["json", "rustls-tls"] }
+tokio   = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 serde   = { version = "1", features = ["derive"] }
 serde_json = "1"
 rust_decimal = { version = "1", features = ["maths"] }
 rust_decimal_macros = "1.39.0"
 libm = "0.2.15"
 chrono = "0.4.42"
+levenberg-marquardt = "0.15.0"
+nalgebra = "0.34.1"

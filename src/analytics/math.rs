@@ -34,18 +34,18 @@ pub fn calculate_bs_implied_volatility(
     match option_type {
         OptionType::Call => {
             if option_price < asset_spot_price - value_now {
-                return Err(UnsolveableError);
+                return Err(UnsolveableError::new(format!("Call option price too low ({option_price})")));
             }
             if option_price > asset_spot_price {
-                return Err(UnsolveableError);
+                return Err(UnsolveableError::new(format!("Call option price too high ({option_price})")));
             }
         }
         OptionType::Put => {
             if option_price < value_now - asset_spot_price {
-                return Err(UnsolveableError);
+                return Err(UnsolveableError::new(format!("Put option price too low ({option_price})")));
             }
             if option_price > value_now {
-                return Err(UnsolveableError);
+                return Err(UnsolveableError::new(format!("Put option price too high ({option_price})")));
             }
         }
     };
@@ -81,7 +81,7 @@ pub fn calculate_bs_implied_volatility(
 
         // Not sure if this could ever happen, but just in case.
         if iterations > 64 {
-            return Err(UnsolveableError);
+            return Err(UnsolveableError::new("Too many iterations when finding bounds"));
         }
     }
 
@@ -358,4 +358,9 @@ fn norm_cdf(x: f64) -> f64 {
 fn norm_pdf(x: f64) -> f64 {
     const INV_SQRT_2PI: f64 = 0.3989422804014326779399460599343819_f64;
     INV_SQRT_2PI * (-0.5 * x * x).exp()
+}
+
+/// Calculate total variance using the stochastic volatility inspired model equation.
+pub fn svi_variance(a: f64, b: f64, p: f64, m: f64, o: f64, log_moneyness: f64) -> f64 {
+    a + b * ((p * (log_moneyness - m)) + ((log_moneyness - m).powf(2.0) + o.powf(2.0)).sqrt())
 }
