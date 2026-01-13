@@ -129,23 +129,6 @@ impl DeribitOptionInstrument {
         let ticker_data = self.ticker_data.as_ref().unwrap();
         let greeks = self.ticker_data.as_ref().unwrap().greeks.as_ref().unwrap();
 
-        // .is_some() {
-        //     true => ticker_data.last_price.unwrap().to_f64().unwrap(),
-        //     false => {
-        //         let bid_range = (ticker_data.best_ask_price - ticker_data.best_bid_price).to_f64().unwrap();
-
-        //         // todo - document/explain this better. is this a good amount?
-        //         // if bid range <= 1 then assume average is price.
-        //         if bid_range > 1.0 {
-        //             return Err(UnusableAPIDataError::new(
-        //                 "No option price was found and best bid and and ask range was greater than 1",
-        //             ));
-        //         }
-
-        //         (ticker_data.best_ask_price + ticker_data.best_bid_price).to_f64().unwrap() * 0.5
-        //     }
-        // };
-
         let price = match self.base_currency.as_ref() {
             "USD" => ticker_data.mark_price.to_f64().unwrap(),
             "BTC" => ticker_data.mark_price.to_f64().unwrap() * ticker_data.index_price.to_f64().unwrap(),
