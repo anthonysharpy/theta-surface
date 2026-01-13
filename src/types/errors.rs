@@ -1,7 +1,7 @@
 /// A calculation was unsolveable.
 #[derive(Clone, PartialEq, Debug)]
 pub struct UnsolveableError {
-    reason: String,
+    pub reason: String,
 }
 
 impl UnsolveableError {
@@ -14,4 +14,14 @@ impl UnsolveableError {
 
 /// API data was unusable.
 #[derive(Clone, PartialEq, Debug)]
-pub struct UnusableAPIDataError;
+pub struct UnusableAPIDataError {
+    pub reason: String,
+}
+
+impl UnusableAPIDataError {
+    pub fn new(unusable_reason: impl Into<String>) -> Self {
+        Self {
+            reason: unusable_reason.into(),
+        }
+    }
+}

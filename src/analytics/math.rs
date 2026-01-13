@@ -29,23 +29,27 @@ pub fn calculate_bs_implied_volatility(
 
     // This is equal to the amount of cash you would need now in order to have the strike price at expiry (by taking into
     // account the risk-free rate).
-    let value_now = strike_price * E.powf((-risk_free_interest_rate) * years_until_expiry);
+    let strike_value_now = strike_price * E.powf((-risk_free_interest_rate) * years_until_expiry);
 
     match option_type {
         OptionType::Call => {
-            if option_price < asset_spot_price - value_now {
-                return Err(UnsolveableError::new(format!("Call option price too low ({option_price})")));
+            if option_price < asset_spot_price - strike_value_now {
+                return Err(UnsolveableError::new(format!(
+                    "Call option price too low ({option_price} < {asset_spot_price} - {strike_value_now})"
+                )));
             }
             if option_price > asset_spot_price {
-                return Err(UnsolveableError::new(format!("Call option price too high ({option_price})")));
+                return Err(UnsolveableError::new(format!("Call option price too high ({option_price} > {asset_spot_price})")));
             }
         }
         OptionType::Put => {
-            if option_price < value_now - asset_spot_price {
-                return Err(UnsolveableError::new(format!("Put option price too low ({option_price})")));
+            if option_price < strike_value_now - asset_spot_price {
+                return Err(UnsolveableError::new(format!(
+                    "Put option price too low ({option_price} < {strike_value_now} - {asset_spot_price})"
+                )));
             }
-            if option_price > value_now {
-                return Err(UnsolveableError::new(format!("Put option price too high ({option_price})")));
+            if option_price > strike_value_now {
+                return Err(UnsolveableError::new(format!("Put option price too high ({option_price} > {strike_value_now})")));
             }
         }
     };
@@ -70,7 +74,7 @@ pub fn calculate_bs_implied_volatility(
             risk_free_interest_rate,
             bounds_end,
             option_type,
-        );
+        )?;
 
         if bs >= option_price {
             break;
@@ -109,7 +113,7 @@ pub fn calculate_bs_implied_volatility(
             risk_free_interest_rate,
             bounds_end,
             option_type,
-        );
+        )?;
         // Calculate BS for the midpoint (halfway between the start and end bounds).
         midpoint_bs = calculate_black_scholes(
             asset_spot_price,
@@ -118,7 +122,7 @@ pub fn calculate_bs_implied_volatility(
             risk_free_interest_rate,
             midpoint,
             option_type,
-        );
+        )?;
 
         // Unlikely, but maybe we got it perfectly.
         if bounds_end_bs == option_price {
@@ -309,10 +313,13 @@ pub fn calculate_black_scholes(
     risk_free_interest_rate: f64,
     volatility: f64,
     option_type: OptionType,
-) -> f64 {
+) -> Result<f64, UnsolveableError> {
+    if years_until_expiry <= 0.0 {
+        return Err(UnsolveableError::new("Option has already expired"));
+    }
+
     assert!(asset_spot_price > 0.0);
     assert!(strike_price > 0.0);
-    assert!(years_until_expiry >= 0.0);
     assert!(risk_free_interest_rate >= 0.0);
     assert!(volatility >= 0.0);
 
@@ -334,7 +341,7 @@ pub fn calculate_black_scholes(
             // exercise the option (if we are out of the money then it won't be exercised).
             // Note that as in the money probability reaches 0, current_value also reaches 0, since d1 already takes into
             // account moneyness.
-            current_value - (strike_price * E.powf(-risk_free_interest_rate * years_until_expiry)) * in_money_probability
+            Ok(current_value - (strike_price * E.powf(-risk_free_interest_rate * years_until_expiry)) * in_money_probability)
         }
         OptionType::Put => {
             // Probability the option finishes in the money.
@@ -346,7 +353,7 @@ pub fn calculate_black_scholes(
 
             // Same as above but other way around.
             let result = (strike_price * E.powf(-risk_free_interest_rate * years_until_expiry)) * in_money_probability;
-            result - current_value
+            Ok(result - current_value)
         }
     };
 }
