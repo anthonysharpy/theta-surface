@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::iter::Map;
 
 use chrono::{DateTime, Utc};
@@ -34,7 +35,7 @@ pub fn build_graphs() {
         let mut highest_implied_volatility = 0.0;
 
         // The first quarter of the graph is extrapolated data.
-        for i in 0..50 {
+        for i in 0..=50 {
             let progress = i as f64 / 50.0;
 
             // x is the strike price.
@@ -56,7 +57,7 @@ pub fn build_graphs() {
         }
 
         // Now we'll create the middle half of the line graph. The middle will lie within our observed data range.
-        for i in 0..100 {
+        for i in 0..=100 {
             let progress = i as f64 / 100.0;
 
             // x is the strike price.
@@ -78,7 +79,7 @@ pub fn build_graphs() {
         }
 
         // Build the last quarter, also extrapolated.
-        for i in 0..50 {
+        for i in 0..=50 {
             let progress = i as f64 / 50.0;
 
             // x is the strike price.
@@ -124,6 +125,9 @@ fn create_graph(
 
     root.fill(&WHITE).expect("Filling graph failed");
 
+    // Don't let x get stupidly small.
+    let min_x = max(-5000, extrapolated_first_quarter_points.first().unwrap().0 as i64);
+
     let mut chart = ChartBuilder::on(&root)
         .caption(
             format!("Volatility of Bitcoin options at expiry {}", expiry.to_rfc3339()),
@@ -132,10 +136,7 @@ fn create_graph(
         .margin(15)
         .x_label_area_size(50)
         .y_label_area_size(50)
-        .build_cartesian_2d(
-            extrapolated_first_quarter_points.first().unwrap().0..extrapolated_last_quarter_points.last().unwrap().0,
-            -0.1..y_finish,
-        )
+        .build_cartesian_2d(min_x as f64..extrapolated_last_quarter_points.last().unwrap().0, -0.1..y_finish)
         .expect("Building graph failed");
 
     chart
