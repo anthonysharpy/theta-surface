@@ -2,6 +2,7 @@ use std::iter::Map;
 
 use chrono::{DateTime, Utc};
 use libm::log;
+use plotters::style::full_palette::GREY;
 
 use crate::analytics::{self, SmileGraphsDataContainer};
 use crate::fileio;
@@ -25,11 +26,36 @@ pub fn build_graphs() {
 
     println!("Creating graphs and saving to file...");
     for graph in graphs_container.smile_graphs {
+        let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();
         let mut points: Vec<(f64, f64)> = Vec::new();
+        let mut last_quarter_points: Vec<(f64, f64)> = Vec::new();
         let strike_range = graph.highest_observed_strike - graph.lowest_observed_strike;
+        let x_start = graph.lowest_observed_strike - (strike_range * 0.5);
+        let mut highest_implied_volatility = 0.0;
 
-        // We'll create a line graph with 100 points.
-        // The points will lie within our observed data range (no extrapolation).
+        // The first quarter of the graph is extrapolated data.
+        for i in 0..50 {
+            let progress = i as f64 / 50.0;
+
+            // x is the strike price.
+            let x = x_start + (strike_range * 0.5 * progress);
+
+            let log_moneyness = (x / graph.forward_price).ln();
+            let expiry = graph.get_years_until_expiry();
+            let implied_variance =
+                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+            // y is the implied volatility.
+            let y = (implied_variance / expiry).sqrt();
+
+            if y > highest_implied_volatility {
+                highest_implied_volatility = y;
+            }
+
+            first_quarter_points.push((x, y));
+        }
+
+        // Now we'll create the middle half of the line graph. The middle will lie within our observed data range.
         for i in 0..100 {
             let progress = i as f64 / 100.0;
 
@@ -44,21 +70,53 @@ pub fn build_graphs() {
             // y is the implied volatility.
             let y = (implied_variance / expiry).sqrt();
 
+            if y > highest_implied_volatility {
+                highest_implied_volatility = y;
+            }
+
             points.push((x, y));
+        }
+
+        // Build the last quarter, also extrapolated.
+        for i in 0..50 {
+            let progress = i as f64 / 50.0;
+
+            // x is the strike price.
+            let x = graph.highest_observed_strike + (strike_range * 0.5 * progress);
+
+            let log_moneyness = (x / graph.forward_price).ln();
+            let expiry = graph.get_years_until_expiry();
+            let implied_variance =
+                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+            // y is the implied volatility.
+            let y = (implied_variance / expiry).sqrt();
+
+            if y > highest_implied_volatility {
+                highest_implied_volatility = y;
+            }
+
+            last_quarter_points.push((x, y));
         }
 
         create_graph(
             DateTime::from_timestamp_secs(graph.expiry).unwrap(),
-            graph.lowest_observed_strike,
-            graph.highest_observed_strike,
-            graph.highest_observed_implied_volatility,
+            highest_implied_volatility,
+            first_quarter_points,
             points,
+            last_quarter_points,
         );
     }
     println!("Done!");
 }
 
-fn create_graph(expiry: DateTime<Utc>, x_start: f64, x_finish: f64, y_finish: f64, points: Vec<(f64, f64)>) {
+fn create_graph(
+    expiry: DateTime<Utc>,
+    y_finish: f64,
+    extrapolated_first_quarter_points: Vec<(f64, f64)>,
+    observed_data_points: Vec<(f64, f64)>,
+    extrapolated_last_quarter_points: Vec<(f64, f64)>,
+) {
     let path = format!("./data/graphs/btc-smile-graph-{}.png", expiry.format("%Y-%m-%d"));
     let root = BitMapBackend::new(&path, (1920, 1080)).into_drawing_area();
 
@@ -71,19 +129,38 @@ fn create_graph(expiry: DateTime<Utc>, x_start: f64, x_finish: f64, y_finish: f6
             format!("Volatility of Bitcoin options at expiry {}", expiry.to_rfc3339()),
             ("sans-serif", 50).into_font(),
         )
-        .margin(5)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(x_start..x_finish, -0.1..y_finish)
+        .margin(15)
+        .x_label_area_size(50)
+        .y_label_area_size(50)
+        .build_cartesian_2d(
+            extrapolated_first_quarter_points.first().unwrap().0..extrapolated_last_quarter_points.last().unwrap().0,
+            -0.1..y_finish,
+        )
         .expect("Building graph failed");
 
-    chart.configure_mesh().draw().expect("Drawing graph mesh failed");
+    chart
+        .configure_mesh()
+        .x_desc("Strike Price (K)")
+        .y_desc("Implied Volatility (σ)")
+        .axis_desc_style(("sans-serif", 30))
+        .draw()
+        .expect("Drawing graph mesh failed");
 
     chart
-        .draw_series(LineSeries::new(points, &RED))
+        .draw_series(LineSeries::new(extrapolated_first_quarter_points, &GREY))
         .expect("Drawing graph series failed")
-        .label("y = x^2")
+        .label("Extrapolated data")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREY));
+
+    chart
+        .draw_series(LineSeries::new(observed_data_points, &RED))
+        .expect("Drawing graph series failed")
+        .label("Observed data")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+
+    chart
+        .draw_series(LineSeries::new(extrapolated_last_quarter_points, &GREY))
+        .expect("Drawing graph series failed");
 
     chart
         .configure_series_labels()
