@@ -13,6 +13,8 @@ async fn main() {
         routines::fetch_market_data().await
     } else if args.iter().any(|a| a == "build-surface") {
         routines::build_surface();
+    } else if args.iter().any(|a| a == "build-graphs") {
+        routines::build_graphs();
     } else {
         routines::help();
     }
