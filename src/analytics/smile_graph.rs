@@ -3,7 +3,7 @@ use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
 use crate::{
-    analytics::{OptionInstrument, svi_variance},
+    analytics::{OptionInstrument, smile_graph, svi_variance},
     types::UnsolveableError,
 };
 
@@ -17,6 +17,10 @@ pub struct SmileGraph {
     pub has_been_fit: bool,
 
     pub expiry: i64,
+    pub forward_price: f64,
+    pub highest_observed_strike: f64,
+    pub lowest_observed_strike: f64,
+    pub highest_observed_implied_volatility: f64,
 
     // The parameters that define the SVI smile curve function
     pub graph_a: f64,
@@ -37,6 +41,10 @@ impl SmileGraph {
             graph_p: 0.0,
             has_been_fit: false,
             expiry: 0,
+            forward_price: 0.0,
+            highest_observed_implied_volatility: f64::MIN,
+            lowest_observed_strike: f64::MAX,
+            highest_observed_strike: f64::MIN,
         }
     }
 
@@ -48,21 +56,53 @@ impl SmileGraph {
             return Err(UnsolveableError::new(format!("Calculating total implied variance failed: {err}")));
         }
 
+        let implied_volatility = option.get_implied_volatility();
+
+        if implied_volatility.is_err() {
+            let err = implied_volatility.err().unwrap().reason;
+            return Err(UnsolveableError::new(format!("Calculating implied volatility failed: {err}")));
+        }
+
         Ok(())
     }
 
     /// Insert an option into this smile graph. The option must have the same expiry as previous inserted options (if any).
     pub fn try_insert_option(&mut self, option: OptionInstrument) -> Result<(), UnsolveableError> {
+        Self::check_option_valid(&option)?;
+
         if self.options.len() == 0 {
             self.expiry = option.expiration.timestamp();
+
+            // We'll be lazy and use this for now. We know this is coming from an external API so it should
+            // be pretty accurate.
+            self.forward_price = option.external_forward_price;
         } else if self.options[0].expiration != option.expiration {
             panic!("Cannot mix options with different expiries");
         }
 
-        Self::check_option_valid(&option)?;
+        if option.strike > self.highest_observed_strike {
+            self.highest_observed_strike = option.strike;
+        }
+        if option.strike < self.lowest_observed_strike {
+            self.lowest_observed_strike = option.strike;
+        }
+
+        let implied_volatility = option.get_implied_volatility().expect("Implied volatility was unsolveable");
+
+        if implied_volatility > self.highest_observed_implied_volatility {
+            self.highest_observed_implied_volatility = implied_volatility;
+        }
+
         self.options.push(option);
 
         Ok(())
+    }
+
+    pub fn get_years_until_expiry(&self) -> f64 {
+        // todo this is just repeated version of the one in options type. refactor?
+        // unsafe unwarp
+        let expiration: DateTime<Utc> = DateTime::from_timestamp_secs(self.expiry).expect("Expiry must be valid");
+        (expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0
     }
 
     /// Using the provided options, calculate the smile shape that best represents the data with the least error.
@@ -136,11 +176,8 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
         let [a, b, p, m, o] = [self.p.x, self.p.y, self.p.z, self.p.w, self.p.a];
         let mut residuals: Vec<f64> = Vec::new();
 
-        // Since this comes from an external API, we'll assume this is accurate for now.
-        let forward_price = self.smile_graph.options[0].external_forward_price;
-
         for option in &self.smile_graph.options {
-            let log_moneyness = option.get_log_moneyness(Some(forward_price));
+            let log_moneyness = option.get_log_moneyness(Some(self.smile_graph.forward_price));
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
             // todo - add weighting?
@@ -158,13 +195,10 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
         type SVIJacobianMatrix = OMatrix<f64, Dyn, U5>;
         let mut jacobians: Vec<f64> = Vec::new();
 
-        // Since this comes from an external API, we'll assume this is accurate for now.
-        let forward_price = self.smile_graph.options[0].external_forward_price;
-
         // Build the Jacobians matrix.
         for option in &self.smile_graph.options {
             // d and s come directly from the SVI equation. By using them we can make writing the derivatives below much simpler.
-            let d = option.get_log_moneyness(Some(forward_price)) - m;
+            let d = option.get_log_moneyness(Some(self.smile_graph.forward_price)) - m;
             let s = (d.powf(2.0) + o.powf(2.0)).sqrt();
 
             let deriv_a = 1.0;
