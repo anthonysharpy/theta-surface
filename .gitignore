@@ -1,1 +1,3 @@
 /target
+data/graphs/*.png
+data/smile-graph-data.json
