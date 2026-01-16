@@ -2,6 +2,8 @@
 
 Tool for downloading Bitcoin market option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
 
+The purpose of this tool is to demonstrate the implementation of complex market-based mathematics and algorithms in a clear and structured way. It is not meant to be the fastest or most efficient implementation by any means. For an example of fast low-latency programming, see https://github.com/anthonysharpy/nanofill.
+
 ## Usage
 
 1. Enter the project's root directory.
@@ -59,3 +61,7 @@ _**build-graphs**_
 - In creating the graphs some math is performed to convert the smiles from a graph showing the change in total implied variance changes against log moneyness into a graph that shows how implied volatility changes as the strike price changes.
 - Once constructed these graphs are saved to file.
 - These graphs are then useful for things such as efficiently pricing options at any given strike price, accurately analysing the market when other data is noisy, validating that other market data is accurate and tracking changes in risk and uncertainty over time. 
+
+# AI disclaimer
+
+ChatGPT was used in this project for research and looking-up information. **None** of the code or text in this project is AI-generated.
