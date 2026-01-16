@@ -13,3 +13,18 @@ pub fn load_struct_from_file<T: DeserializeOwned>(path: &str) -> T {
 
     serde_json::from_str::<T>(&data).expect("Failed deserialising object")
 }
+
+/// Delete all files in the given directory except files whose name contains ignore_filter.
+pub fn clear_directory(path: &str, ignore_filter: &str) {
+    let files = fs::read_dir(path).expect(&format!("Couldn't read directory {path}"));
+
+    for file in files {
+        let file_info = file.unwrap();
+
+        if !file_info.path().is_file() || file_info.file_name().to_str().unwrap().contains(ignore_filter) {
+            continue;
+        }
+
+        fs::remove_file(file_info.path()).expect(&format!("Failed to delete file at path {}", file_info.path().display()));
+    }
+}

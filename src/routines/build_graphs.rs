@@ -25,6 +25,11 @@ pub fn build_graphs() {
     );
     println!("------------------------------");
 
+    println!("Deleting any existing graphs...");
+    fileio::clear_directory("./data/graphs/", "gitkeep");
+    println!("Done!");
+    println!("------------------------------");
+
     println!("Creating graphs and saving to file...");
     for graph in graphs_container.smile_graphs {
         let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();
