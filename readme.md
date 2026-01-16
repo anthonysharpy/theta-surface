@@ -1,6 +1,6 @@
 # ThetaSurface
 
-Tool for fetching Bitcoin market option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
+Tool built using Rust for fetching Bitcoin market option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
 
 The purpose of this tool is to demonstrate the implementation of complex market-based mathematics and algorithms in a clear and structured way. It is not meant to be the fastest or most efficient implementation by any means. For an example of fast low-latency programming, see https://github.com/anthonysharpy/nanofill.
 
