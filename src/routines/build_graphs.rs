@@ -1,119 +1,133 @@
 use std::cmp::max;
-use std::iter::Map;
 
 use chrono::{DateTime, Utc};
-use libm::log;
 use plotters::style::full_palette::GREY;
 
-use crate::analytics::{self, SmileGraphsDataContainer};
+use crate::analytics::{self, SmileGraph, SmileGraphsDataContainer};
 use crate::fileio;
 use plotters::prelude::*;
 
 pub fn build_graphs() {
     println!("Building Bitcoin volatility graphs and saving to file...");
 
-    println!("Loading external API data...");
-    let graphs_container = fileio::load_struct_from_file::<SmileGraphsDataContainer>("./data/smile-graph-data.json");
-    let smile_graphs_count = graphs_container.smile_graphs.len();
-    let first_expiry = graphs_container.smile_graphs.iter().min_by_key(|x| x.expiry).unwrap().expiry;
-    let last_expiry = graphs_container.smile_graphs.iter().max_by_key(|x| x.expiry).unwrap().expiry;
-    println!("Found {smile_graphs_count} smile graphs...");
-    println!(
-        "Smile graph data ranges from {} to {}",
-        DateTime::from_timestamp_secs(first_expiry).unwrap().to_rfc3339(),
-        DateTime::from_timestamp_secs(last_expiry).unwrap().to_rfc3339()
-    );
+    let graphs_data = load_api_data();
     println!("------------------------------");
 
-    println!("Deleting any existing graphs...");
-    fileio::clear_directory("./data/graphs/", "gitkeep");
-    println!("Done!");
+    delete_existing_graphs();
     println!("------------------------------");
 
     println!("Creating graphs and saving to file...");
-    for graph in graphs_container.smile_graphs {
-        let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();
-        let mut points: Vec<(f64, f64)> = Vec::new();
-        let mut last_quarter_points: Vec<(f64, f64)> = Vec::new();
-        let strike_range = graph.highest_observed_strike - graph.lowest_observed_strike;
-        let x_start = graph.lowest_observed_strike - (strike_range * 0.5);
-        let mut highest_implied_volatility = 0.0;
 
-        // The first quarter of the graph is extrapolated data.
-        for i in 0..=50 {
-            let progress = i as f64 / 50.0;
-
-            // x is the strike price.
-            let x = x_start + (strike_range * 0.5 * progress);
-
-            let log_moneyness = (x / graph.forward_price).ln();
-            let expiry = graph.get_years_until_expiry();
-            let implied_variance =
-                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
-
-            // y is the implied volatility.
-            let y = (implied_variance / expiry).sqrt();
-
-            if y > highest_implied_volatility {
-                highest_implied_volatility = y;
-            }
-
-            first_quarter_points.push((x, y));
-        }
-
-        // Now we'll create the middle half of the line graph. The middle will lie within our observed data range.
-        for i in 0..=100 {
-            let progress = i as f64 / 100.0;
-
-            // x is the strike price.
-            let x = graph.lowest_observed_strike + (strike_range * progress);
-
-            let log_moneyness = (x / graph.forward_price).ln();
-            let expiry = graph.get_years_until_expiry();
-            let implied_variance =
-                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
-
-            // y is the implied volatility.
-            let y = (implied_variance / expiry).sqrt();
-
-            if y > highest_implied_volatility {
-                highest_implied_volatility = y;
-            }
-
-            points.push((x, y));
-        }
-
-        // Build the last quarter, also extrapolated.
-        for i in 0..=50 {
-            let progress = i as f64 / 50.0;
-
-            // x is the strike price.
-            let x = graph.highest_observed_strike + (strike_range * 0.5 * progress);
-
-            let log_moneyness = (x / graph.forward_price).ln();
-            let expiry = graph.get_years_until_expiry();
-            let implied_variance =
-                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
-
-            // y is the implied volatility.
-            let y = (implied_variance / expiry).sqrt();
-
-            if y > highest_implied_volatility {
-                highest_implied_volatility = y;
-            }
-
-            last_quarter_points.push((x, y));
-        }
+    for graph in graphs_data.smile_graphs {
+        let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility) = build_graph_data(&graph);
 
         create_graph(
             DateTime::from_timestamp_secs(graph.expiry).unwrap(),
             highest_implied_volatility,
             first_quarter_points,
-            points,
+            middle_points,
             last_quarter_points,
         );
     }
+
     println!("Done!");
+}
+
+fn build_graph_data(graph: &SmileGraph) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64) {
+    let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();
+    let mut middle_points: Vec<(f64, f64)> = Vec::new();
+    let mut last_quarter_points: Vec<(f64, f64)> = Vec::new();
+    let strike_range = graph.highest_observed_strike - graph.lowest_observed_strike;
+    let x_start = graph.lowest_observed_strike - (strike_range * 0.5);
+    let mut highest_implied_volatility = 0.0;
+
+    // The first quarter of the graph is extrapolated data.
+    for i in 0..=50 {
+        let progress = i as f64 / 50.0;
+
+        // x is the strike price.
+        let x = x_start + (strike_range * 0.5 * progress);
+
+        let log_moneyness = (x / graph.forward_price).ln();
+        let expiry = graph.get_years_until_expiry();
+        let implied_variance =
+            analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+        // y is the implied volatility.
+        let y = (implied_variance / expiry).sqrt();
+
+        if y > highest_implied_volatility {
+            highest_implied_volatility = y;
+        }
+
+        first_quarter_points.push((x, y));
+    }
+
+    // Now we'll create the middle half of the line graph. The middle will lie within our observed data range.
+    for i in 0..=100 {
+        let progress = i as f64 / 100.0;
+
+        // x is the strike price.
+        let x = graph.lowest_observed_strike + (strike_range * progress);
+
+        let log_moneyness = (x / graph.forward_price).ln();
+        let expiry = graph.get_years_until_expiry();
+        let implied_variance =
+            analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+        // y is the implied volatility.
+        let y = (implied_variance / expiry).sqrt();
+
+        if y > highest_implied_volatility {
+            highest_implied_volatility = y;
+        }
+
+        middle_points.push((x, y));
+    }
+
+    // Build the last quarter, also extrapolated.
+    for i in 0..=50 {
+        let progress = i as f64 / 50.0;
+
+        // x is the strike price.
+        let x = graph.highest_observed_strike + (strike_range * 0.5 * progress);
+
+        let log_moneyness = (x / graph.forward_price).ln();
+        let expiry = graph.get_years_until_expiry();
+        let implied_variance =
+            analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+        // y is the implied volatility.
+        let y = (implied_variance / expiry).sqrt();
+
+        if y > highest_implied_volatility {
+            highest_implied_volatility = y;
+        }
+
+        last_quarter_points.push((x, y));
+    }
+
+    (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility)
+}
+
+fn delete_existing_graphs() {
+    println!("Deleting any existing graphs...");
+    fileio::clear_directory("./data/graphs/", "gitkeep");
+    println!("Done!");
+}
+
+fn load_api_data() -> SmileGraphsDataContainer {
+    println!("Loading external API data...");
+    let data = fileio::load_struct_from_file::<SmileGraphsDataContainer>("./data/smile-graph-data.json");
+
+    let first_expiry = DateTime::from_timestamp_secs(data.smile_graphs.iter().min_by_key(|x| x.expiry).unwrap().expiry).unwrap();
+    let last_expiry = DateTime::from_timestamp_secs(data.smile_graphs.iter().max_by_key(|x| x.expiry).unwrap().expiry).unwrap();
+    let smile_graphs_count = data.smile_graphs.len();
+
+    println!("Found {smile_graphs_count} smile graphs...");
+    println!("Smile graph data ranges from {} to {}", first_expiry.to_rfc3339(), last_expiry.to_rfc3339());
+
+    data
 }
 
 fn create_graph(
