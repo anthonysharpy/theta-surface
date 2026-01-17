@@ -2,7 +2,7 @@
 
 Rust tool for fetching Bitcoin market option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
 
-The purpose of this is to demonstrate the implementation of complex market-based mathematics and algorithms in a clear and structured way. It is not meant to be the fastest or most efficient implementation by any means. For an example of fast low-latency programming, see https://github.com/anthonysharpy/nanofill.
+The purpose of this is to demonstrate the implementation of complex market-based mathematics and algorithms in a clear and structured way. It is not necessarily meant to be the fastest or most efficient implementation. For an example of fast low-latency programming, see https://github.com/anthonysharpy/nanofill.
 
 ## Usage
 
@@ -64,4 +64,4 @@ _**build-graphs**_
 
 # AI disclaimer
 
-ChatGPT was used in this project for research and looking-up information. **None** of the code or text in this project is AI-generated.
+ChatGPT was used in this project for research and looking-up information. None of the code or text in this project is AI-generated.
