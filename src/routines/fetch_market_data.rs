@@ -7,7 +7,11 @@ use crate::integrations::DeribitTickerData;
 use crate::network;
 
 pub async fn fetch_market_data() {
-    println!("Fetching Bitcoin market data and saving to file...");
+    println!("===========================================================");
+    println!("===========================================================");
+    println!("Fetching Bitcoin market data and saving to file");
+    println!("===========================================================");
+    println!("===========================================================");
 
     println!("Fetching options...");
     let mut options = network::do_rpc_request_as_struct::<Vec<DeribitOptionInstrument>>(
@@ -55,4 +59,6 @@ pub async fn fetch_market_data() {
     };
 
     fileio::save_struct_to_file(&data, "./data/deribit-btc-market-data.json");
+
+    println!("===========================================================");
 }

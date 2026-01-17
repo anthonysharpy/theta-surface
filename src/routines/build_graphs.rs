@@ -8,7 +8,11 @@ use crate::fileio;
 use plotters::prelude::*;
 
 pub fn build_graphs() {
-    println!("Building Bitcoin volatility graphs and saving to file...");
+    println!("===========================================================");
+    println!("===========================================================");
+    println!("Building Bitcoin volatility graphs and saving to file");
+    println!("===========================================================");
+    println!("===========================================================");
 
     let graphs_data = load_api_data();
     println!("------------------------------");
@@ -31,6 +35,7 @@ pub fn build_graphs() {
     }
 
     println!("Done!");
+    println!("===========================================================");
 }
 
 fn build_graph_data(graph: &SmileGraph) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64) {

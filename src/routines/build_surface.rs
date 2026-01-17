@@ -5,28 +5,57 @@ use crate::fileio;
 use crate::integrations::DeribitDataContainer;
 
 pub fn build_surface() {
-    println!("Building surface from downloaded data and saving to file...");
-    println!("");
+    println!("===========================================================");
+    println!("===========================================================");
+    println!("Building surface from downloaded data and saving to file");
+    println!("===========================================================");
+    println!("===========================================================");
 
-    println!("Loading external API data...");
-    let raw_data = fileio::load_struct_from_file::<DeribitDataContainer>("./data/deribit-btc-market-data.json");
-    let mut options: Vec<OptionInstrument> = Vec::new();
-    let mut discarded_options = 0;
-    let mut kept_options = 0;
-    let external_data_count = raw_data.options.len();
-    println!("Found {external_data_count} options");
+    let raw_data = load_saved_deribit_api_data();
     println!("------------------------------");
 
+    let options = convert_external_data_to_internal_format(raw_data);
+    println!("------------------------------");
+
+    let grouped_options = group_options_by_expiry(options);
+    println!("------------------------------");
+
+    let mut smile_graphs = build_smile_graphs(grouped_options);
+    println!("------------------------------");
+
+    fit_smile_graphs(&mut smile_graphs);
+    println!("------------------------------");
+
+    save_data_to_file(smile_graphs);
+    println!("------------------------------");
+
+    println!("===========================================================");
+}
+
+fn load_saved_deribit_api_data() -> DeribitDataContainer {
+    println!("Loading external API data...");
+    let data = fileio::load_struct_from_file::<DeribitDataContainer>("./data/deribit-btc-market-data.json");
+    let external_data_count = data.options.len();
+    println!("Found {external_data_count} options");
+
+    data
+}
+
+/// Turn API data into our internal options type, throwing away bad data.
+fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Vec<OptionInstrument> {
     println!("Converting options to internal format...");
 
-    // Turn the API data into our internal options type, throwing away bad data.
-    for api_option in raw_data.options {
+    let mut discarded_options = 0;
+    let mut kept_options = 0;
+    let mut options: Vec<OptionInstrument> = Vec::new();
+
+    for api_option in data.options {
         let internal_option = api_option.to_option();
 
         if internal_option.is_err() {
             discarded_options += 1;
             let error = internal_option.err().unwrap().reason;
-            println!("Discarding unusable option data: {error}"); // todo - output option name etc 
+            println!("Discarding unusable option data ({}): {}...", api_option.instrument_name, error);
             continue;
         }
 
@@ -36,9 +65,13 @@ pub fn build_surface() {
 
     let total_options = kept_options + discarded_options;
     println!("Kept {kept_options}/{total_options} options");
-    println!("------------------------------");
 
-    println!("Grouping {kept_options} options by expiry...");
+    options
+}
+
+fn group_options_by_expiry(options: Vec<OptionInstrument>) -> HashMap<i64, Vec<OptionInstrument>> {
+    println!("Grouping {} options by expiry...", options.len());
+
     let mut grouped_options: HashMap<i64, Vec<OptionInstrument>> = HashMap::new();
 
     for option in options {
@@ -57,10 +90,14 @@ pub fn build_surface() {
 
     let number_of_groups = grouped_options.len();
     println!("Put options into {number_of_groups} groups");
-    println!("------------------------------");
 
+    grouped_options
+}
+
+fn build_smile_graphs(grouped_options: HashMap<i64, Vec<OptionInstrument>>) -> Vec<SmileGraph> {
     println!("Building smile graphs based on data...");
     let mut smiles: Vec<SmileGraph> = Vec::new();
+    let initial_groups_count = grouped_options.len();
 
     for (_, options) in grouped_options {
         let mut smile_graph = SmileGraph::new();
@@ -79,15 +116,19 @@ pub fn build_surface() {
             Err(e) => println!("Discarding an invalid smile graph: {e}..."),
         };
     }
-    let number_of_smile_graphs = smiles.len();
-    println!("Built {number_of_smile_graphs} out of {number_of_groups} smile graphs");
-    println!("------------------------------");
 
+    println!("Built {} out of {} smile graphs", smiles.len(), initial_groups_count);
+
+    smiles
+}
+
+fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) {
     println!("Fitting smile graphs...");
+
     let mut succeeded_smiles = 0;
     let mut failed_smiles = 0;
 
-    for graph in &mut smiles {
+    for graph in smile_graphs.iter_mut() {
         let current_smile = succeeded_smiles + failed_smiles + 1;
         println!("Fitting smile {current_smile}...");
 
@@ -95,7 +136,7 @@ pub fn build_surface() {
             Err(e) => {
                 failed_smiles += 1;
                 let reason = e.reason;
-                println!("Failed fitting smile: {reason}");
+                println!("Failed fitting smile: {reason}...");
             }
             Ok(_) => {
                 succeeded_smiles += 1;
@@ -103,11 +144,10 @@ pub fn build_surface() {
         }
     }
 
-    let total_smiles = succeeded_smiles + failed_smiles;
+    println!("Successfully fit {}/{} smiles", succeeded_smiles, smile_graphs.len());
+}
 
-    println!("Successfully fit {succeeded_smiles}/{total_smiles} smiles");
-    println!("------------------------------");
-
+fn save_data_to_file(smiles: Vec<SmileGraph>) {
     println!("Saving data to file...");
 
     let data = SmileGraphsDataContainer {
@@ -115,6 +155,6 @@ pub fn build_surface() {
     };
 
     fileio::save_struct_to_file(&data, "./data/smile-graph-data.json");
-    println!("Done!");
-    println!("------------------------------");
+
+    println!("Successfully saved to file");
 }
