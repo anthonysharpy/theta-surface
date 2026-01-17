@@ -59,6 +59,5 @@ pub async fn fetch_market_data() {
     };
 
     fileio::save_struct_to_file(&data, "./data/deribit-btc-market-data.json");
-
     println!("===========================================================");
 }
