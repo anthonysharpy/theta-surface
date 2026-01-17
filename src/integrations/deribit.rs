@@ -59,37 +59,6 @@ pub struct DeribitTickerData {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct DeribitFutureInstrument {
-    pub ticker_data: Option<DeribitTickerData>,
-    pub price_index: Box<str>,
-    pub kind: Box<str>,
-    pub instrument_name: Box<str>,
-    pub max_leverage: Decimal,
-    pub maker_commission: Decimal,
-    pub taker_commission: Decimal,
-    pub instrument_type: Box<str>,
-    pub expiration_timestamp: u64,
-    pub creation_timestamp: u64,
-    pub is_active: bool,
-    pub tick_size: Decimal,
-    pub contract_size: Decimal,
-    pub instrument_id: u32,
-    pub min_trade_amount: Decimal,
-    pub future_type: Box<str>,
-    pub max_liquidation_commission: Decimal,
-    pub max_non_default_leverage: Decimal,
-    pub block_trade_commission: Decimal,
-    pub block_trade_min_trade_amount: Decimal,
-    pub block_trade_tick_size: Decimal,
-    pub settlement_currency: Box<str>,
-    pub settlement_period: Box<str>,
-    pub base_currency: Box<str>,
-    pub counter_currency: Box<str>,
-    pub quote_currency: Box<str>,
-    pub tick_size_steps: Vec<DeribitTickSizeStep>,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
 pub struct DeribitIndexPrice {
     pub estimated_delivery_price: Decimal,
     pub index_price: Decimal,
@@ -155,7 +124,6 @@ impl DeribitOptionInstrument {
 /// A simple place to store all the data - this will make it easy to save and load from file.
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DeribitDataContainer {
-    pub futures: Vec<DeribitFutureInstrument>,
     pub options: Vec<DeribitOptionInstrument>,
     pub index_price: DeribitIndexPrice,
 }

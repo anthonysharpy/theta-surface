@@ -1,6 +1,5 @@
 use crate::fileio;
 use crate::integrations::DeribitDataContainer;
-use crate::integrations::DeribitFutureInstrument;
 use crate::integrations::DeribitIndexPrice;
 use crate::integrations::DeribitOptionInstrument;
 use crate::integrations::DeribitTickerData;
@@ -27,13 +26,6 @@ pub async fn fetch_market_data() {
     .await
     .expect("Failed downloading index price");
 
-    println!("Fetching futures...");
-    let mut futures = network::do_rpc_request_as_struct::<Vec<DeribitFutureInstrument>>(
-        "https://www.deribit.com/api/v2/public/get_instruments?currency=BTC&kind=future&expired=false",
-    )
-    .await
-    .expect("Failed downloading futures");
-
     for i in 0..options.len() {
         println!("Fetching ticker data for option ({} of {})...", i + 1, options.len());
         let url = format!("https://www.deribit.com/api/v2/public/ticker?instrument_name={}", options[i].instrument_name);
@@ -42,18 +34,9 @@ pub async fn fetch_market_data() {
         options[i].ticker_data = Some(ticker_request.await.expect("Failed downloading ticker data for option"));
     }
 
-    for i in 0..futures.len() {
-        println!("Fetching ticker data for future ({} of {})...", i + 1, futures.len());
-        let url = format!("https://www.deribit.com/api/v2/public/ticker?instrument_name={}", futures[i].instrument_name);
-        let ticker_request = network::do_rpc_request_as_struct::<DeribitTickerData>(&url);
-
-        futures[i].ticker_data = Some(ticker_request.await.expect("Failed downloading ticker data for future"));
-    }
-
     println!("Saving data to file...");
 
     let data = DeribitDataContainer {
-        futures: futures,
         options: options,
         index_price: index_price,
     };
