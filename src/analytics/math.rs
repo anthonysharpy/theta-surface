@@ -369,10 +369,12 @@ fn norm_pdf(x: f64) -> f64 {
 
 /// Calculate total variance using the stochastic volatility inspired model equation. This is specially
 /// designed (not by me) to produce curves that completely lack arbitrage.
-pub fn svi_variance(a: f64, b: f64, p: f64, m: f64, o: f64, log_moneyness: f64) -> f64 {
+pub fn svi_variance(a: f64, b: f64, p: f64, m: f64, o: f64, log_moneyness: f64) -> Result<f64, UnsolveableError> {
     let result = a + b * ((p * (log_moneyness - m)) + ((log_moneyness - m).powf(2.0) + o.powf(2.0)).sqrt());
 
-    assert!(result >= 0.0);
+    if result < 0.0 {
+        return Err(UnsolveableError::new("SVI variance less than zero is impossible"));
+    }
 
-    result
+    Ok(result)
 }

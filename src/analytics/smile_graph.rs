@@ -3,7 +3,7 @@ use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
 use crate::{
-    analytics::{OptionInstrument, smile_graph, svi_variance},
+    analytics::{OptionInstrument, svi_variance},
     types::UnsolveableError,
 };
 
@@ -181,7 +181,10 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
             // todo - add weighting?
-            let residual = svi_variance(a, b, p, m, o, log_moneyness) - total_implied_variance;
+            let svi_variance = svi_variance(a, b, p, m, o, log_moneyness)
+                .unwrap_or_else(|e| panic!("SVI variance was unsolveable: {}", e.reason));
+
+            let residual = svi_variance - total_implied_variance;
             residuals.push(residual);
         }
 

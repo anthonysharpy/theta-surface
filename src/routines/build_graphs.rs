@@ -23,7 +23,8 @@ pub fn build_graphs() {
     println!("Creating graphs and saving to file...");
 
     for graph in graphs_data.smile_graphs {
-        let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility) = build_graph_data(&graph);
+        let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility) =
+            build_graph_data(&graph, 400);
 
         create_graph(
             DateTime::from_timestamp_secs(graph.expiry).unwrap(),
@@ -38,25 +39,39 @@ pub fn build_graphs() {
     println!("===============================================================");
 }
 
-fn build_graph_data(graph: &SmileGraph) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64) {
+/// # Arguments
+///
+/// * `graph` - The smile graph object.
+/// * `number_of_points` - The number of discrete points the graph should have. Higher values will result in a smoother graph.
+fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64) {
+    assert!(number_of_points.is_multiple_of(4));
+
     let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();
     let mut middle_points: Vec<(f64, f64)> = Vec::new();
     let mut last_quarter_points: Vec<(f64, f64)> = Vec::new();
     let strike_range = graph.highest_observed_strike - graph.lowest_observed_strike;
     let x_start = graph.lowest_observed_strike - (strike_range * 0.5);
     let mut highest_implied_volatility = 0.0;
+    let points_per_quarter = number_of_points / 4;
 
     // The first quarter of the graph is extrapolated data.
-    for i in 0..=50 {
-        let progress = i as f64 / 50.0;
+    for i in 0..=points_per_quarter {
+        let progress = i as f64 / points_per_quarter as f64;
 
         // x is the strike price.
         let x = x_start + (strike_range * 0.5 * progress);
 
         let log_moneyness = (x / graph.forward_price).ln();
         let expiry = graph.get_years_until_expiry();
-        let implied_variance =
-            analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+        // Variance is unsolveable for negative x.
+        let implied_variance = match x < 0.0 {
+            true => 0.0,
+            false => {
+                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness)
+                    .unwrap()
+            }
+        };
 
         // y is the implied volatility.
         let y = (implied_variance / expiry).sqrt();
@@ -69,16 +84,23 @@ fn build_graph_data(graph: &SmileGraph) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Ve
     }
 
     // Now we'll create the middle half of the line graph. The middle will lie within our observed data range.
-    for i in 0..=100 {
-        let progress = i as f64 / 100.0;
+    for i in 0..=points_per_quarter * 2 {
+        let progress = i as f64 / (points_per_quarter * 2) as f64;
 
         // x is the strike price.
         let x = graph.lowest_observed_strike + (strike_range * progress);
 
         let log_moneyness = (x / graph.forward_price).ln();
         let expiry = graph.get_years_until_expiry();
-        let implied_variance =
-            analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+        // Variance is unsolveable for negative x.
+        let implied_variance = match x < 0.0 {
+            true => 0.0,
+            false => {
+                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness)
+                    .unwrap()
+            }
+        };
 
         // y is the implied volatility.
         let y = (implied_variance / expiry).sqrt();
@@ -91,16 +113,23 @@ fn build_graph_data(graph: &SmileGraph) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Ve
     }
 
     // Build the last quarter, also extrapolated.
-    for i in 0..=50 {
-        let progress = i as f64 / 50.0;
+    for i in 0..=points_per_quarter {
+        let progress = i as f64 / points_per_quarter as f64;
 
         // x is the strike price.
         let x = graph.highest_observed_strike + (strike_range * 0.5 * progress);
 
         let log_moneyness = (x / graph.forward_price).ln();
         let expiry = graph.get_years_until_expiry();
-        let implied_variance =
-            analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness);
+
+        // Variance is unsolveable for negative x.
+        let implied_variance = match x < 0.0 {
+            true => 0.0,
+            false => {
+                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness)
+                    .unwrap()
+            }
+        };
 
         // y is the implied volatility.
         let y = (implied_variance / expiry).sqrt();
