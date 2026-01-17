@@ -183,7 +183,7 @@ fn create_graph(
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
-            format!("Volatility of Bitcoin options at expiry {}", expiry.to_rfc3339()),
+            format!("Implied volatility of Bitcoin options at expiry {}", expiry.to_rfc3339()),
             ("sans-serif", 50).into_font(),
         )
         .margin(15)
