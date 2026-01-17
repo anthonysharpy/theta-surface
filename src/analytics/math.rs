@@ -369,5 +369,9 @@ fn norm_pdf(x: f64) -> f64 {
 
 /// Calculate total variance using the stochastic volatility inspired model equation.
 pub fn svi_variance(a: f64, b: f64, p: f64, m: f64, o: f64, log_moneyness: f64) -> f64 {
-    a + b * ((p * (log_moneyness - m)) + ((log_moneyness - m).powf(2.0) + o.powf(2.0)).sqrt())
+    let result = a + b * ((p * (log_moneyness - m)) + ((log_moneyness - m).powf(2.0) + o.powf(2.0)).sqrt());
+
+    assert!(result >= 0.0);
+
+    result
 }
