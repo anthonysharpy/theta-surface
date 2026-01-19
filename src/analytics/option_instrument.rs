@@ -25,7 +25,6 @@ pub struct OptionInstrument {
     /// The rho according to the API we originally got this data from.
     pub external_rho: f64,
     implied_volatility: Cell<Option<f64>>,
-    log_moneyness: Cell<Option<f64>>,
     total_implied_variance: Cell<Option<f64>>,
     /// The forward spot price according to the API we originally got this data from.
     pub external_forward_price: f64,
@@ -60,7 +59,6 @@ impl OptionInstrument {
             external_rho,
             external_forward_price,
             implied_volatility: Cell::new(None),
-            log_moneyness: Cell::new(None),
             total_implied_variance: Cell::new(None),
         }
     }
@@ -113,17 +111,11 @@ impl OptionInstrument {
 
     /// Use forward_price_override if for example you need to do the equation using a specific forward price.
     pub fn get_log_moneyness(&self, forward_price_override: Option<f64>) -> f64 {
-        if self.log_moneyness.get().is_some() {
-            return self.log_moneyness.get().unwrap();
-        }
-
         let forward_price = match forward_price_override.is_some() {
             true => forward_price_override.unwrap(),
             false => self.external_forward_price,
         };
 
-        self.log_moneyness.set(Some((self.strike / forward_price).ln()));
-
-        self.log_moneyness.get().unwrap()
+        (self.strike / forward_price).ln()
     }
 }
