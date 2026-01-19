@@ -27,7 +27,7 @@ pub fn build_graphs() {
             build_graph_data(&graph, 400);
 
         create_graph(
-            DateTime::from_timestamp_secs(graph.expiry).unwrap(),
+            DateTime::from_timestamp_secs(graph.get_seconds_until_expiry()).unwrap(),
             highest_implied_volatility,
             first_quarter_points,
             middle_points,
@@ -145,8 +145,22 @@ fn load_api_data() -> SmileGraphsDataContainer {
     println!("Loading external API data...");
     let data = fileio::load_struct_from_file::<SmileGraphsDataContainer>("./data/smile-graph-data.json");
 
-    let first_expiry = DateTime::from_timestamp_secs(data.smile_graphs.iter().min_by_key(|x| x.expiry).unwrap().expiry).unwrap();
-    let last_expiry = DateTime::from_timestamp_secs(data.smile_graphs.iter().max_by_key(|x| x.expiry).unwrap().expiry).unwrap();
+    let first_expiry = DateTime::from_timestamp_secs(
+        data.smile_graphs
+            .iter()
+            .min_by_key(|x| x.get_seconds_until_expiry())
+            .unwrap()
+            .get_seconds_until_expiry(),
+    )
+    .unwrap();
+    let last_expiry = DateTime::from_timestamp_secs(
+        data.smile_graphs
+            .iter()
+            .max_by_key(|x| x.get_seconds_until_expiry())
+            .unwrap()
+            .get_seconds_until_expiry(),
+    )
+    .unwrap();
     let smile_graphs_count = data.smile_graphs.len();
 
     println!("Found {smile_graphs_count} smile graphs...");

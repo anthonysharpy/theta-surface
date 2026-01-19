@@ -16,7 +16,8 @@ pub struct SmileGraph {
     #[serde(skip)]
     pub has_been_fit: bool,
 
-    pub expiry: i64,
+    seconds_until_expiry: i64,
+    years_until_expiry: f64,
     pub forward_price: f64,
     pub highest_observed_strike: f64,
     pub lowest_observed_strike: f64,
@@ -31,12 +32,28 @@ impl SmileGraph {
             options: Vec::new(),
             svi_curve_parameters: SVICurveParameters::new_empty(),
             has_been_fit: false,
-            expiry: 0,
+            seconds_until_expiry: 0,
             forward_price: 0.0,
             highest_observed_implied_volatility: f64::MIN,
             lowest_observed_strike: f64::MAX,
             highest_observed_strike: f64::MIN,
+            years_until_expiry: 0.0,
         }
+    }
+
+    pub fn get_years_until_expiry(&self) -> f64 {
+        self.years_until_expiry
+    }
+
+    pub fn get_seconds_until_expiry(&self) -> i64 {
+        self.seconds_until_expiry
+    }
+
+    pub fn set_expiry(&mut self, secs_until_expiry: i64) {
+        // todo this is just repeated version of the one in options type. refactor?
+        let expiration = DateTime::from_timestamp_secs(secs_until_expiry).expect("Expiry must be valid");
+        self.years_until_expiry = (expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0;
+        self.seconds_until_expiry = secs_until_expiry;
     }
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), UnsolveableError> {
@@ -62,12 +79,12 @@ impl SmileGraph {
         Self::check_option_valid(&option)?;
 
         if self.options.len() == 0 {
-            self.expiry = option.expiration.timestamp();
+            self.set_expiry(option.get_expiration().timestamp());
 
             // We'll be lazy and use this for now. We know this is coming from an external API so it should
             // be pretty accurate.
             self.forward_price = option.external_forward_price;
-        } else if self.options[0].expiration != option.expiration {
+        } else if self.options[0].get_expiration() != option.get_expiration() {
             panic!("Cannot mix options with different expiries");
         }
 
@@ -87,13 +104,6 @@ impl SmileGraph {
         self.options.push(option);
 
         Ok(())
-    }
-
-    pub fn get_years_until_expiry(&self) -> f64 {
-        // todo this is just repeated version of the one in options type. refactor?
-        // unsafe unwarp
-        let expiration: DateTime<Utc> = DateTime::from_timestamp_secs(self.expiry).expect("Expiry must be valid");
-        (expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0
     }
 
     /// Using the provided options, calculate the smile shape that best represents the data with the least error.

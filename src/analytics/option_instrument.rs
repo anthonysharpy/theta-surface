@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub struct OptionInstrument {
-    pub expiration: DateTime<Utc>,
+    expiration: DateTime<Utc>,
     pub strike: f64,
     pub price: f64,
     pub instrument_id: Box<str>,
@@ -28,6 +28,7 @@ pub struct OptionInstrument {
     total_implied_variance: Cell<Option<f64>>,
     /// The forward spot price according to the API we originally got this data from.
     pub external_forward_price: f64,
+    years_until_expiry: f64,
 }
 
 impl OptionInstrument {
@@ -60,12 +61,16 @@ impl OptionInstrument {
             external_forward_price,
             implied_volatility: Cell::new(None),
             total_implied_variance: Cell::new(None),
+            years_until_expiry: (expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0,
         }
     }
 
+    pub fn get_expiration(&self) -> DateTime<Utc> {
+        self.expiration
+    }
+
     pub fn get_years_until_expiry(&self) -> f64 {
-        // unsafe unwarp
-        (self.expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0
+        self.years_until_expiry
     }
 
     pub fn get_implied_volatility(&self) -> Result<f64, UnsolveableError> {

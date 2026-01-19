@@ -73,12 +73,12 @@ fn group_options_by_expiry(options: Vec<OptionInstrument>) -> HashMap<i64, Vec<O
     let mut grouped_options: HashMap<i64, Vec<OptionInstrument>> = HashMap::new();
 
     for option in options {
-        let expiration = option.expiration.timestamp_millis();
+        let expiration = option.get_expiration().timestamp_millis();
 
         if grouped_options.contains_key(&expiration) {
             grouped_options.get_mut(&expiration).unwrap().push(option);
         } else {
-            let formatted_expiration = option.expiration.to_rfc3339();
+            let formatted_expiration = option.get_expiration().to_rfc3339();
             println!("Found a new expiry {expiration} (i.e. {formatted_expiration})...");
             let mut new_vector: Vec<OptionInstrument> = Vec::new();
             new_vector.push(option);
