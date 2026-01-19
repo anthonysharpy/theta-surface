@@ -1,4 +1,4 @@
-use crate::analytics::SmileGraph;
+use crate::{analytics::SmileGraph, types::UnsolveableError};
 
 // The parameters that define the SVI smile curve function
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -11,22 +11,22 @@ pub struct SVICurveParameters {
 }
 
 impl SVICurveParameters {
-    /// Create a new and empty instance (everything set to 0).
+    /// Create a new and empty instance (everything set to near 0).
     pub fn new_empty() -> SVICurveParameters {
         let params: SVICurveParameters = SVICurveParameters {
             a: 0.0,
             b: 0.0,
             p: 0.0,
             m: 0.0,
-            o: 0.0,
+            o: 0.1, // 0.0 would be invalid.
         };
 
-        Self::assert_valid(&params);
+        Self::assert_valid(&params).unwrap_or_else(|e| panic!("{}", e.reason));
 
         params
     }
 
-    pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> SVICurveParameters {
+    pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> Result<SVICurveParameters, UnsolveableError> {
         let params: SVICurveParameters = SVICurveParameters {
             a: a,
             b: b,
@@ -35,9 +35,9 @@ impl SVICurveParameters {
             o: o,
         };
 
-        Self::assert_valid(&params);
+        Self::assert_valid(&params)?;
 
-        params
+        Ok(params)
     }
 
     pub fn set_params(&mut self, a: f64, b: f64, p: f64, m: f64, o: f64) {
@@ -47,7 +47,7 @@ impl SVICurveParameters {
         self.m = m;
         self.o = o;
 
-        Self::assert_valid(&self);
+        Self::assert_valid(self).unwrap_or_else(|e| panic!("{}", e.reason));
     }
 
     pub fn get_a(&self) -> f64 {
@@ -70,7 +70,42 @@ impl SVICurveParameters {
         self.o
     }
 
-    fn assert_valid(params: &Self) {}
+    /// Assert that the maths is correct.
+    fn assert_valid(params: &SVICurveParameters) -> Result<(), UnsolveableError> {
+        if params.b < 0.0 {
+            return Err(UnsolveableError::new(format!("b cannot be less than zero ({})", params.b)));
+        }
+        if params.p <= -1.0 {
+            return Err(UnsolveableError::new("p must be greater than -1"));
+        }
+        if params.p >= 1.0 {
+            return Err(UnsolveableError::new("p must be smaller than 1"));
+        }
+        if params.o <= 0.0 {
+            return Err(UnsolveableError::new("o must be greater than 0"));
+        }
+
+        // Assert non-negative variance.
+        if params.a + (params.b * params.o * (1.0 - params.p.powf(2.0)).sqrt()) < 0.0 {
+            return Err(UnsolveableError::new("Variance must be greater than 0"));
+        }
+
+        // Assert Lee's moment formula consistent.
+        if params.b * (1.0 + params.p) < 0.0 {
+            return Err(UnsolveableError::new("Asymptotic slope of total variance must be greater than 0"));
+        }
+        if params.b * (1.0 + params.p) >= 2.0 {
+            return Err(UnsolveableError::new("Asymptotic slope of total variance must be less than 2"));
+        }
+        if params.b * (1.0 - params.p) < 0.0 {
+            return Err(UnsolveableError::new("Asymptotic slope of total variance must be greater than 0"));
+        }
+        if params.b * (1.0 - params.p) >= 2.0 {
+            return Err(UnsolveableError::new("Asymptotic slope of total variance must be less than 2"));
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(PartialEq, Copy, Clone)]

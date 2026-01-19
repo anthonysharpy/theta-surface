@@ -3,7 +3,7 @@ use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
 use crate::{
-    analytics::{OptionInstrument, svi_variance, types::SVICurveParameters},
+    analytics::{OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
     types::UnsolveableError,
 };
 
@@ -161,10 +161,24 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
     }
 
     fn residuals(&self) -> Option<Matrix<f64, Dyn, U1, Self::ResidualStorage>> {
-        let svi_params = SVICurveParameters::new_from_values(self.p.x, self.p.y, self.p.z, self.p.w, self.p.a);
+        // We'll use this if we deem the parameters or arbitrage etc to be no good. Usually we see loss of < 1 in the fitted
+        // graph, so this is a very high amount.
+        let fail_loss = 999.0;
+        let maybe_svi_params = SVICurveParameters::new_from_values(self.p.x, self.p.y, self.p.z, self.p.w, self.p.a);
         let mut residuals: Vec<f64> = Vec::new();
+        let svi_params_valid = maybe_svi_params.is_ok();
+        let svi_params = match svi_params_valid {
+            false => SVICurveParameters::new_empty(),
+            true => maybe_svi_params.unwrap(),
+        };
 
         for option in &self.smile_graph.options {
+            // These params are garbage, push a very high loss.
+            if !svi_params_valid {
+                residuals.push(fail_loss);
+                continue;
+            }
+
             let log_moneyness = option.get_log_moneyness(Some(self.smile_graph.forward_price));
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
@@ -172,7 +186,18 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
             let svi_variance =
                 svi_variance(&svi_params, log_moneyness).unwrap_or_else(|e| panic!("SVI variance was unsolveable: {}", e.reason));
 
-            let residual = svi_variance - total_implied_variance;
+            let mut residual = svi_variance - total_implied_variance;
+
+            // If there is arbitrage then this curve is mathematically invalid. Fail it.
+            if has_butterfly_arbitrage(&svi_params, 1, option.strike as u64 * 2, self.smile_graph.forward_price, 100)
+                .unwrap_or_else(|e| panic!("Failed checking for butterfly arbitrage: {}", e.reason))
+            {
+                residual = fail_loss;
+            }
+
+            // We should also be checking for calendar arbitrage, but since this software just handles discrete expiry slices,
+            // we'll overlook it for now.
+
             residuals.push(residual);
         }
 
@@ -188,7 +213,7 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
 
         // Build the Jacobians matrix.
         for option in &self.smile_graph.options {
-            // d and s come directly from the SVI equation. By using them we can make writing the derivatives below much simpler.
+            // d and s come directly from the SVI equation. By using them we make writing the derivatives below simpler.
             let d = option.get_log_moneyness(Some(self.smile_graph.forward_price)) - m;
             let s = (d.powf(2.0) + o.powf(2.0)).sqrt();
 

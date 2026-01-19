@@ -368,8 +368,55 @@ fn norm_pdf(x: f64) -> f64 {
     INV_SQRT_2PI * (-0.5 * x * x).exp()
 }
 
-/// Calculate total variance using the stochastic volatility inspired model equation. This is specially
-/// designed (not by me) to produce curves that completely lack arbitrage.
+/// Returns true if the given SVI curve has butterfly arbitrage, or an error if there was an issue with the calculation.
+///
+/// Checks resolution spots on the given curve and checks there is no arbitrage at any point. The graph will be scanned
+/// from strikes from_strike to to_strike.
+///
+/// See https://arxiv.org/pdf/1204.0646 and https://www.ma.imperial.ac.uk/~ajacquie/IC_AMDP/IC_AMDP_Docs/Code/SSVI.pdf.
+pub fn has_butterfly_arbitrage(
+    curve_params: &SVICurveParameters,
+    from_strike: u64,
+    to_strike: u64,
+    forward_price: f64,
+    resolution: u64,
+) -> Result<bool, UnsolveableError> {
+    let range = to_strike - from_strike;
+    let step_size = range as f64 / resolution as f64;
+
+    // We'll test lots of points along this graph and see if we can find any invalid spots. If we find any, there is arbitrage.
+    for i in 0..=resolution {
+        let strike = from_strike + (step_size * i as f64) as u64;
+
+        let log_moneyness = (strike as f64 / forward_price).ln();
+        let x = log_moneyness - curve_params.get_m();
+        let b = curve_params.get_b();
+        let o = curve_params.get_o();
+        let p = curve_params.get_p();
+        let svi_variance = svi_variance(curve_params, log_moneyness)?;
+        let svi_variance_deriv1 = b * (p + (x / (x.powf(2.0) + o.powf(2.0)).sqrt()));
+        let svi_variance_deriv2 = b * (o.powf(2.0) / ((x.powf(2.0) + o.powf(2.0)).powf(1.5)));
+
+        let part1 = (1.0 - ((log_moneyness * svi_variance_deriv1) / (2.0 * svi_variance))).powf(2.0);
+
+        let mut part2 = svi_variance_deriv1.powf(2.0) / 4.0;
+        part2 *= (1.0 / svi_variance) + 0.25;
+
+        let part3 = svi_variance_deriv2 / 2.0;
+
+        let result = part1 - part2 + part3;
+
+        if result < 0.0 {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+/// Calculate total variance using the stochastic volatility inspired model equation, which produces a smile shape.
+/// There are other shapes you can use, some of which guarantee no arbitrage, but we'll stick with this for now
+/// as it's widely used.
 pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f64) -> Result<f64, UnsolveableError> {
     let a = svi_curve_parameters.get_a();
     let b = svi_curve_parameters.get_b();
