@@ -21,7 +21,7 @@ impl SVICurveParameters {
             o: 0.1, // 0.0 would be invalid.
         };
 
-        Self::assert_valid(&params).unwrap_or_else(|e| panic!("{}", e.reason));
+        Self::check_valid(&params).unwrap_or_else(|e| panic!("{}", e.reason));
 
         params
     }
@@ -35,7 +35,7 @@ impl SVICurveParameters {
             o: o,
         };
 
-        Self::assert_valid(&params)?;
+        Self::check_valid(&params)?;
 
         Ok(params)
     }
@@ -47,7 +47,7 @@ impl SVICurveParameters {
         self.m = m;
         self.o = o;
 
-        Self::assert_valid(self).unwrap_or_else(|e| panic!("{}", e.reason));
+        Self::check_valid(self).unwrap_or_else(|e| panic!("{}", e.reason));
     }
 
     pub fn get_a(&self) -> f64 {
@@ -71,7 +71,7 @@ impl SVICurveParameters {
     }
 
     /// Assert that the maths is correct.
-    fn assert_valid(params: &SVICurveParameters) -> Result<(), UnsolveableError> {
+    pub fn check_valid(params: &SVICurveParameters) -> Result<(), UnsolveableError> {
         if params.b < 0.0 {
             return Err(UnsolveableError::new(format!("b cannot be less than zero ({})", params.b)));
         }

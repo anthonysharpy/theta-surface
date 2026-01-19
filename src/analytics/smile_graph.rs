@@ -103,6 +103,9 @@ impl SmileGraph {
                 // The initial guess for the SVI function.
                 p: Vector5::new(0.1, 0.2, -0.2, 0.1, 0.5), // These defaults are terrible!!!!!!!!!!!!!!!!
                 smile_graph: self,
+                curve_valid: true,
+                has_arbitrage: false,
+                curve: Some(SVICurveParameters::new_empty()),
             };
 
             // Library default for patience is 100.
@@ -144,6 +147,9 @@ struct SVIProblem<'graph> {
     /// a = o
     p: Vector5<f64>,
     smile_graph: &'graph SmileGraph,
+    curve: Option<SVICurveParameters>,
+    curve_valid: bool,
+    has_arbitrage: bool,
 }
 
 impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
@@ -153,7 +159,35 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
 
     fn set_params(&mut self, p: &Vector5<f64>) {
         self.p.copy_from(p);
-        // do common calculations for residuals and the Jacobian here
+
+        // Common calculations for residuals and the Jacobian.
+        let svi_params = SVICurveParameters::new_from_values(self.p.x, self.p.y, self.p.z, self.p.w, self.p.a);
+        self.curve_valid = svi_params.is_ok();
+
+        self.curve = match self.curve_valid {
+            true => Some(svi_params.unwrap()),
+            false => None,
+        };
+
+        self.has_arbitrage = false;
+
+        if self.curve_valid {
+            // If there is arbitrage then this curve is mathematically invalid. Fail it.
+            if has_butterfly_arbitrage(
+                self.curve.as_ref().unwrap(),
+                1,
+                self.smile_graph.highest_observed_strike as u64 * 2,
+                self.smile_graph.forward_price,
+                100,
+            )
+            .unwrap_or_else(|e| panic!("Failed checking for butterfly arbitrage: {}", e.reason))
+            {
+                self.has_arbitrage = true;
+            }
+
+            // We should also be checking for calendar arbitrage, but since this software just handles discrete expiry slices,
+            // we'll overlook it for now.
+        }
     }
 
     fn params(&self) -> Vector5<f64> {
@@ -164,17 +198,11 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
         // We'll use this if we deem the parameters or arbitrage etc to be no good. Usually we see loss of < 1 in the fitted
         // graph, so this is a very high amount.
         let fail_loss = 999.0;
-        let maybe_svi_params = SVICurveParameters::new_from_values(self.p.x, self.p.y, self.p.z, self.p.w, self.p.a);
         let mut residuals: Vec<f64> = Vec::new();
-        let svi_params_valid = maybe_svi_params.is_ok();
-        let svi_params = match svi_params_valid {
-            false => SVICurveParameters::new_empty(),
-            true => maybe_svi_params.unwrap(),
-        };
 
         for option in &self.smile_graph.options {
             // These params are garbage, push a very high loss.
-            if !svi_params_valid {
+            if !self.curve_valid || self.has_arbitrage {
                 residuals.push(fail_loss);
                 continue;
             }
@@ -182,21 +210,12 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
             let log_moneyness = option.get_log_moneyness(Some(self.smile_graph.forward_price));
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
-            // todo - add weighting?
-            let svi_variance =
-                svi_variance(&svi_params, log_moneyness).unwrap_or_else(|e| panic!("SVI variance was unsolveable: {}", e.reason));
+            let svi_variance = svi_variance(self.curve.as_ref().unwrap(), log_moneyness)
+                .unwrap_or_else(|e| panic!("SVI variance was unsolveable: {}", e.reason));
 
-            let mut residual = svi_variance - total_implied_variance;
-
-            // If there is arbitrage then this curve is mathematically invalid. Fail it.
-            if has_butterfly_arbitrage(&svi_params, 1, option.strike as u64 * 2, self.smile_graph.forward_price, 100)
-                .unwrap_or_else(|e| panic!("Failed checking for butterfly arbitrage: {}", e.reason))
-            {
-                residual = fail_loss;
-            }
-
-            // We should also be checking for calendar arbitrage, but since this software just handles discrete expiry slices,
-            // we'll overlook it for now.
+            // We could also add weighting to each option depending on the quality of its data.
+            // But we'll treat them all equally for now.
+            let residual = svi_variance - total_implied_variance;
 
             residuals.push(residual);
         }
@@ -213,6 +232,16 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
 
         // Build the Jacobians matrix.
         for option in &self.smile_graph.options {
+            // Curve is rubbish so just push 0 for everything to punish the algorithm.
+            if !self.curve_valid || self.has_arbitrage {
+                jacobians.push(0.0);
+                jacobians.push(0.0);
+                jacobians.push(0.0);
+                jacobians.push(0.0);
+                jacobians.push(0.0);
+                continue;
+            }
+
             // d and s come directly from the SVI equation. By using them we make writing the derivatives below simpler.
             let d = option.get_log_moneyness(Some(self.smile_graph.forward_price)) - m;
             let s = (d.powf(2.0) + o.powf(2.0)).sqrt();
