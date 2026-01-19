@@ -67,10 +67,7 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // Variance is unsolveable for negative x.
         let implied_variance = match x < 0.0 {
             true => 0.0,
-            false => {
-                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness)
-                    .unwrap()
-            }
+            false => analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap(),
         };
 
         // y is the implied volatility.
@@ -96,10 +93,7 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // Variance is unsolveable for negative x.
         let implied_variance = match x < 0.0 {
             true => 0.0,
-            false => {
-                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness)
-                    .unwrap()
-            }
+            false => analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap(),
         };
 
         // y is the implied volatility.
@@ -125,10 +119,7 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // Variance is unsolveable for negative x.
         let implied_variance = match x < 0.0 {
             true => 0.0,
-            false => {
-                analytics::svi_variance(graph.graph_a, graph.graph_b, graph.graph_p, graph.graph_m, graph.graph_o, log_moneyness)
-                    .unwrap()
-            }
+            false => analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap(),
         };
 
         // y is the implied volatility.

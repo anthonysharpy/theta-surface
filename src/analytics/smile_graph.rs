@@ -3,7 +3,7 @@ use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
 use crate::{
-    analytics::{OptionInstrument, svi_variance},
+    analytics::{OptionInstrument, svi_variance, types::SVICurveParameters},
     types::UnsolveableError,
 };
 
@@ -22,23 +22,14 @@ pub struct SmileGraph {
     pub lowest_observed_strike: f64,
     pub highest_observed_implied_volatility: f64,
 
-    // The parameters that define the SVI smile curve function
-    pub graph_a: f64,
-    pub graph_b: f64,
-    pub graph_p: f64,
-    pub graph_m: f64,
-    pub graph_o: f64,
+    pub svi_curve_parameters: SVICurveParameters,
 }
 
 impl SmileGraph {
     pub fn new() -> SmileGraph {
         SmileGraph {
             options: Vec::new(),
-            graph_a: 0.0,
-            graph_b: 0.0,
-            graph_m: 0.0,
-            graph_o: 0.0,
-            graph_p: 0.0,
+            svi_curve_parameters: SVICurveParameters::new_empty(),
             has_been_fit: false,
             expiry: 0,
             forward_price: 0.0,
@@ -126,11 +117,8 @@ impl SmileGraph {
             result.p
         };
 
-        self.graph_a = result.x;
-        self.graph_b = result.y;
-        self.graph_p = result.z;
-        self.graph_m = result.w;
-        self.graph_o = result.a;
+        self.svi_curve_parameters
+            .set_params(result.x, result.y, result.z, result.w, result.a);
         self.has_been_fit = true;
 
         Ok(())
@@ -173,7 +161,7 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
     }
 
     fn residuals(&self) -> Option<Matrix<f64, Dyn, U1, Self::ResidualStorage>> {
-        let [a, b, p, m, o] = [self.p.x, self.p.y, self.p.z, self.p.w, self.p.a];
+        let svi_params = SVICurveParameters::new_from_values(self.p.x, self.p.y, self.p.z, self.p.w, self.p.a);
         let mut residuals: Vec<f64> = Vec::new();
 
         for option in &self.smile_graph.options {
@@ -181,8 +169,8 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
             // todo - add weighting?
-            let svi_variance = svi_variance(a, b, p, m, o, log_moneyness)
-                .unwrap_or_else(|e| panic!("SVI variance was unsolveable: {}", e.reason));
+            let svi_variance =
+                svi_variance(&svi_params, log_moneyness).unwrap_or_else(|e| panic!("SVI variance was unsolveable: {}", e.reason));
 
             let residual = svi_variance - total_implied_variance;
             residuals.push(residual);

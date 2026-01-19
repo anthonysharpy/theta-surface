@@ -1,4 +1,5 @@
 use crate::analytics::OptionType;
+use crate::analytics::types::SVICurveParameters;
 use crate::types::UnsolveableError;
 use std::f64::consts::E;
 
@@ -369,7 +370,13 @@ fn norm_pdf(x: f64) -> f64 {
 
 /// Calculate total variance using the stochastic volatility inspired model equation. This is specially
 /// designed (not by me) to produce curves that completely lack arbitrage.
-pub fn svi_variance(a: f64, b: f64, p: f64, m: f64, o: f64, log_moneyness: f64) -> Result<f64, UnsolveableError> {
+pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f64) -> Result<f64, UnsolveableError> {
+    let a = svi_curve_parameters.get_a();
+    let b = svi_curve_parameters.get_b();
+    let p = svi_curve_parameters.get_p();
+    let m = svi_curve_parameters.get_m();
+    let o = svi_curve_parameters.get_o();
+
     let result = a + b * ((p * (log_moneyness - m)) + ((log_moneyness - m).powf(2.0) + o.powf(2.0)).sqrt());
 
     if result < 0.0 {
