@@ -91,8 +91,9 @@ impl SmileGraph {
 
             if uncertainty < best_uncertainty {
                 best_uncertainty = uncertainty;
-                forward_price =
-                    Some(strike + ((call_option.price - put_option.price) * E.powf(0.03 * call_option.get_years_until_expiry())))
+
+                // Match the way forward price is calculated for implied volatility.
+                forward_price = Some(call_option.spot_price * E.powf(0.03 * call_option.get_years_until_expiry()));
             }
         }
 
@@ -168,7 +169,7 @@ impl SmileGraph {
         let result = {
             let problem = SVIProblem {
                 // The initial guess for the SVI function.
-                p: Vector5::new(0.1, 0.2, -0.2, 0.1, 0.5), // These defaults are terrible!!!!!!!!!!!!!!!!
+                p: Vector5::new(0.01, 0.1, -0.1, 0.01, 0.1), // These defaults are terrible!!!!!!!!!!!!!!!!
                 smile_graph: self,
                 curve_valid: true,
                 has_arbitrage: false,
