@@ -14,6 +14,8 @@ pub struct OptionInstrument {
     pub instrument_id: Box<str>,
     pub option_type: OptionType,
     pub spot_price: f64,
+    pub bid_price: f64,
+    pub ask_price: f64,
     /// The theta according to the API we originally got this data from.
     pub external_theta: f64,
     /// The delta according to the API we originally got this data from.
@@ -45,23 +47,27 @@ impl OptionInstrument {
         external_vega: f64,
         external_rho: f64,
         external_forward_price: f64,
+        bid_price: f64,
+        ask_price: f64,
     ) -> Self {
         Self {
-            price,
-            expiration,
-            strike,
-            instrument_id,
-            option_type,
-            spot_price,
-            external_theta,
-            external_delta,
-            external_gamma,
-            external_vega,
-            external_rho,
-            external_forward_price,
+            price: price,
+            expiration: expiration,
+            strike: strike,
+            instrument_id: instrument_id,
+            option_type: option_type,
+            spot_price: spot_price,
+            external_theta: external_theta,
+            external_delta: external_delta,
+            external_gamma: external_gamma,
+            external_vega: external_vega,
+            external_rho: external_rho,
+            external_forward_price: external_forward_price,
             implied_volatility: Cell::new(None),
             total_implied_variance: Cell::new(None),
             years_until_expiry: (expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0,
+            bid_price: bid_price,
+            ask_price: ask_price,
         }
     }
 

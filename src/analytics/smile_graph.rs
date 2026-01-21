@@ -1,9 +1,12 @@
+use core::f64;
+use std::{cell::Cell, f64::consts::E};
+
 use chrono::{DateTime, Utc};
 use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
 use crate::{
-    analytics::{OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
+    analytics::{OptionInstrument, OptionType, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
     types::UnsolveableError,
 };
 
@@ -18,7 +21,7 @@ pub struct SmileGraph {
 
     seconds_until_expiry: i64,
     years_until_expiry: f64,
-    pub forward_price: f64,
+    forward_price: Cell<Option<f64>>,
     pub highest_observed_strike: f64,
     pub lowest_observed_strike: f64,
     pub highest_observed_implied_volatility: f64,
@@ -33,12 +36,70 @@ impl SmileGraph {
             svi_curve_parameters: SVICurveParameters::new_empty(),
             has_been_fit: false,
             seconds_until_expiry: 0,
-            forward_price: 0.0,
+            forward_price: Cell::new(None),
             highest_observed_implied_volatility: f64::MIN,
             lowest_observed_strike: f64::MAX,
             highest_observed_strike: f64::MIN,
             years_until_expiry: 0.0,
         }
+    }
+
+    /// Using the options we have, calculate the forward price (of the underlying) that best represents all of the options.
+    /// When we fit a smile graph, we must always use the same forward price.
+    /// We'll pick the pair of call/put options that indicate the least uncertainty, judging by the forward-adjusted spread
+    /// of bid/ask prices. This is likely not the most optimal approach but it should more or less do the job.
+    pub fn get_underlying_forward_price(&self) -> f64 {
+        if self.forward_price.get().is_some() {
+            return self.forward_price.get().unwrap();
+        }
+
+        let call_options = self.options.iter().filter(|x| x.option_type == OptionType::Call);
+        let mut best_uncertainty = f64::MAX;
+        let mut forward_price: Option<f64> = None;
+
+        for call_option in call_options {
+            let strike = call_option.strike;
+            let maybe_put_option = self
+                .options
+                .iter()
+                .find(|x| x.option_type == OptionType::Put && x.strike == call_option.strike);
+
+            // Maybe there is no call/put pair for this strike price.
+            if maybe_put_option.is_none() {
+                continue;
+            }
+
+            let put_option = maybe_put_option.unwrap();
+
+            // Avoid nonsense numbers.
+            if call_option.bid_price > call_option.ask_price || put_option.bid_price > put_option.ask_price {
+                continue;
+            }
+
+            let low =
+                strike + ((call_option.bid_price - put_option.ask_price) * E.powf(0.03 * call_option.get_years_until_expiry()));
+            let high =
+                strike + ((call_option.ask_price - put_option.bid_price) * E.powf(0.03 * call_option.get_years_until_expiry()));
+
+            // Avoid nonsense.
+            if high < low {
+                continue;
+            }
+
+            // The difference between low and high represents the uncertainty of the pricing.
+            let uncertainty = high - low;
+
+            if uncertainty < best_uncertainty {
+                best_uncertainty = uncertainty;
+                forward_price =
+                    Some(strike + ((call_option.price - put_option.price) * E.powf(0.03 * call_option.get_years_until_expiry())))
+            }
+        }
+
+        self.forward_price.set(forward_price);
+
+        // Panic if we don't find anything.
+        self.forward_price.get().unwrap()
     }
 
     pub fn get_years_until_expiry(&self) -> f64 {
@@ -80,10 +141,6 @@ impl SmileGraph {
 
         if self.options.len() == 0 {
             self.set_expiry(option.get_expiration().timestamp());
-
-            // We'll be lazy and use this for now. We know this is coming from an external API so it should
-            // be pretty accurate.
-            self.forward_price = option.external_forward_price;
         } else if self.options[0].get_expiration() != option.get_expiration() {
             panic!("Cannot mix options with different expiries");
         }
@@ -187,7 +244,7 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
                 self.curve.as_ref().unwrap(),
                 1,
                 self.smile_graph.highest_observed_strike as u64 * 2,
-                self.smile_graph.forward_price,
+                self.smile_graph.get_underlying_forward_price(),
                 100,
             )
             .unwrap_or_else(|e| panic!("Failed checking for butterfly arbitrage: {}", e.reason))
@@ -217,7 +274,7 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
                 continue;
             }
 
-            let log_moneyness = option.get_log_moneyness(Some(self.smile_graph.forward_price));
+            let log_moneyness = option.get_log_moneyness(Some(self.smile_graph.get_underlying_forward_price()));
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
             let svi_variance = svi_variance(self.curve.as_ref().unwrap(), log_moneyness)
@@ -253,7 +310,7 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
             }
 
             // d and s come directly from the SVI equation. By using them we make writing the derivatives below simpler.
-            let d = option.get_log_moneyness(Some(self.smile_graph.forward_price)) - m;
+            let d = option.get_log_moneyness(Some(self.smile_graph.get_underlying_forward_price())) - m;
             let s = (d.powf(2.0) + o.powf(2.0)).sqrt();
 
             let deriv_a = 1.0;

@@ -61,7 +61,7 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // x is the strike price.
         let x = x_start + (strike_range * 0.5 * progress);
 
-        let log_moneyness = (x / graph.forward_price).ln();
+        let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
         let expiry = graph.get_years_until_expiry();
 
         // Variance is unsolveable for negative x.
@@ -87,7 +87,7 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // x is the strike price.
         let x = graph.lowest_observed_strike + (strike_range * progress);
 
-        let log_moneyness = (x / graph.forward_price).ln();
+        let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
         let expiry = graph.get_years_until_expiry();
 
         // Variance is unsolveable for negative x.
@@ -113,7 +113,7 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // x is the strike price.
         let x = graph.highest_observed_strike + (strike_range * 0.5 * progress);
 
-        let log_moneyness = (x / graph.forward_price).ln();
+        let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
         let expiry = graph.get_years_until_expiry();
 
         // Variance is unsolveable for negative x.

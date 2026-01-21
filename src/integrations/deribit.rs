@@ -117,6 +117,8 @@ impl DeribitOptionInstrument {
             greeks.vega.to_f64().unwrap(),
             greeks.rho.to_f64().unwrap(),
             ticker_data.underlying_price.unwrap().to_f64().unwrap(),
+            ticker_data.best_bid_price.to_f64().unwrap(),
+            ticker_data.best_ask_price.to_f64().unwrap(),
         ))
     }
 }
