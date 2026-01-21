@@ -169,7 +169,7 @@ impl SmileGraph {
         let result = {
             let problem = SVIProblem {
                 // The initial guess for the SVI function.
-                p: Vector5::new(0.01, 0.1, -0.1, 0.01, 0.1), // These defaults are terrible!!!!!!!!!!!!!!!!
+                p: Vector5::new(0.1, 0.2, -0.2, 0.1, 0.5), // These defaults are terrible!!!!!!!!!!!!!!!!
                 smile_graph: self,
                 curve_valid: true,
                 has_arbitrage: false,
