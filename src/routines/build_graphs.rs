@@ -61,14 +61,15 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // x is the strike price.
         let x = x_start + (strike_range * 0.5 * progress);
 
+        // Unsolveable for negative x.
+        if x < 0.0 {
+            first_quarter_points.push((x, 0.0));
+            continue;
+        }
+
         let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
         let expiry = graph.get_years_until_expiry();
-
-        // Variance is unsolveable for negative x.
-        let implied_variance = match x < 0.0 {
-            true => 0.0,
-            false => analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap(),
-        };
+        let implied_variance = analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap();
 
         // y is the implied volatility.
         let y = (implied_variance / expiry).sqrt();
@@ -87,14 +88,15 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // x is the strike price.
         let x = graph.lowest_observed_strike + (strike_range * progress);
 
+        // Unsolveable for negative x.
+        if x < 0.0 {
+            middle_points.push((x, 0.0));
+            continue;
+        }
+
         let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
         let expiry = graph.get_years_until_expiry();
-
-        // Variance is unsolveable for negative x.
-        let implied_variance = match x < 0.0 {
-            true => 0.0,
-            false => analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap(),
-        };
+        let implied_variance = analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap();
 
         // y is the implied volatility.
         let y = (implied_variance / expiry).sqrt();
@@ -113,14 +115,15 @@ fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64
         // x is the strike price.
         let x = graph.highest_observed_strike + (strike_range * 0.5 * progress);
 
+        // Unsolveable for negative x.
+        if x < 0.0 {
+            last_quarter_points.push((x, 0.0));
+            continue;
+        }
+
         let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
         let expiry = graph.get_years_until_expiry();
-
-        // Variance is unsolveable for negative x.
-        let implied_variance = match x < 0.0 {
-            true => 0.0,
-            false => analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap(),
-        };
+        let implied_variance = analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap();
 
         // y is the implied volatility.
         let y = (implied_variance / expiry).sqrt();
