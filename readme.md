@@ -4,6 +4,15 @@ Rust tool for fetching Bitcoin market option data, fitting a volatility surface 
 
 The purpose of this is to demonstrate the implementation of complex market-based mathematics and algorithms in a clear and structured way. It is not necessarily meant to be the fastest or most efficient implementation. For an example of fast low-latency programming, see https://github.com/anthonysharpy/nanofill.
 
+# Graph explanation
+
+![Graph](./images/example-smile-graph.png)
+
+- **Extrapolated data**: The extrapolated part of the smile curve.
+- **Observed data**: The smile curve representing the range of data that we actually observed.
+- **Smile-relative implied volatility**: The implied volatility of an option calculated using the single forward price chosen for the whole graph.
+- **Self-relative implied volatility**: The implied volatility of an option calculated using the option's own forward price. Multiple of these on the same strike usually implies a put/call pair. If these show a trend that differs greatly from the main curve, it implies that the curve was badly fit.
+
 ## Usage
 
 1. Enter the project's root directory.
