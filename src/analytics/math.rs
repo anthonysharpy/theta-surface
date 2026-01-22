@@ -192,110 +192,6 @@ pub fn black_scholes_d2(d1: f64, volatility: f64, years_until_expiry: f64) -> f6
     d1 - uncertainty
 }
 
-/// Calculate delta of a dividendless European option. Shows change in option price for a (small) change in the spot price.
-/// Note however that delta also changes as the spot price changes, hence "small" change.
-///
-/// # Arguments
-///
-/// * `d1` - The Black-Scholes d1 value (see black_scholes_d1()).
-/// * `option_type` - The type of the option.
-pub fn calculate_delta(option_type: OptionType, d1: f64) -> f64 {
-    match option_type {
-        OptionType::Call => norm_cdf(d1),
-        OptionType::Put => norm_cdf(d1) - 1.0,
-    }
-}
-
-/// Calculate gamma of a dividendless European option. Shows how delta changes as the spot price changes.
-///
-/// # Arguments
-///
-/// * `d1` - The Black-Scholes d1 value (see black_scholes_d1()).
-/// * `asset_spot_price` - The current spot price of the underlying asset.
-/// * `years_until_expiry` - Years until the option expires (365 day year).
-/// * `volatility` - Annualised standard deviation of the underlying log returns. Must use a 365 day year.
-pub fn calculate_gamma(d1: f64, asset_spot_price: f64, volatility: f64, years_until_expiry: f64) -> f64 {
-    norm_pdf(d1) / (asset_spot_price * volatility * years_until_expiry.sqrt())
-}
-
-/// Calculate the vega of a dividendless European option. Shows how option changes for a (small) change in the volatility.
-///
-/// # Arguments
-///
-/// * `d1` - The Black-Scholes d1 value (see black_scholes_d1()).
-/// * `asset_spot_price` - The current spot price of the underlying asset.
-/// * `years_until_expiry` - Years until the option expires (365 day year).
-pub fn calculate_vega(d1: f64, asset_spot_price: f64, years_until_expiry: f64) -> f64 {
-    asset_spot_price * norm_pdf(d1) * years_until_expiry.sqrt()
-}
-
-/// Calculate the theta of a dividendless European option. Shows how option price changes as time passes. Returned as change per
-/// year.
-///
-/// # Arguments
-///
-/// * `d1` - The Black-Scholes d1 value (see black_scholes_d1()).
-/// * `d2` - The Black-Scholes d2 value (see black_scholes_d2()).
-/// * `asset_spot_price` - The current spot price of the underlying asset.
-/// * `strike_price` - The strike price of the option.
-/// * `years_until_expiry` - Years until the option expires (365 day year).
-/// * `risk_free_interest_rate` - The continously-compounded risk-free interest rate from now until expiry. Annualised. For
-/// example, 5% per annum is 0.05. Must use a 365 day year.
-/// * `volatility` - Annualised standard deviation of the underlying log returns. Must use a 365 day year.
-/// * `option_type` - The type of the option.
-pub fn calculate_theta(
-    d1: f64,
-    d2: f64,
-    asset_spot_price: f64,
-    volatility: f64,
-    years_until_expiry: f64,
-    risk_free_interest_rate: f64,
-    strike_price: f64,
-    option_type: OptionType,
-) -> f64 {
-    match option_type {
-        OptionType::Call => {
-            let mut result = -asset_spot_price * norm_pdf(d1) * volatility;
-            result /= 2.0 * years_until_expiry.sqrt();
-            result - risk_free_interest_rate * strike_price * E.powf(-risk_free_interest_rate * years_until_expiry) * norm_cdf(d2)
-        }
-        OptionType::Put => {
-            let mut result = -asset_spot_price * norm_pdf(d1) * volatility;
-            result /= 2.0 * years_until_expiry.sqrt();
-            result
-                + risk_free_interest_rate * strike_price * E.powf(-risk_free_interest_rate * years_until_expiry) * norm_cdf(-d2)
-        }
-    }
-}
-
-/// Calculate the rho of a dividendless European option. Shows the change in option price for a (small) change in the risk-free
-/// interest rate.
-///
-/// # Arguments
-///
-/// * `d2` - The Black-Scholes d2 value (see black_scholes_d2()).
-/// * `strike_price` - The strike price of the option.
-/// * `years_until_expiry` - Years until the option expires (365 day year).
-/// * `risk_free_interest_rate` - The continously-compounded risk-free interest rate from now until expiry. Annualised. For
-/// example, 5% per annum is 0.05. Must use a 365 day year.
-/// * `option_type` - The type of the option.
-pub fn calculate_rho(
-    d2: f64,
-    years_until_expiry: f64,
-    risk_free_interest_rate: f64,
-    strike_price: f64,
-    option_type: OptionType,
-) -> f64 {
-    match option_type {
-        OptionType::Call => {
-            strike_price * years_until_expiry * E.powf(-risk_free_interest_rate * years_until_expiry) * norm_cdf(d2)
-        }
-        OptionType::Put => {
-            -strike_price * years_until_expiry * E.powf(-risk_free_interest_rate * years_until_expiry) * norm_cdf(-d2)
-        }
-    }
-}
-
 /// Calculate the Black-Scholes price given the provided parameters. Assumes no dividends.
 ///
 /// # Arguments
@@ -360,11 +256,6 @@ pub fn calculate_black_scholes(
 
 fn norm_cdf(x: f64) -> f64 {
     0.5 * libm::erfc(-x * std::f64::consts::FRAC_1_SQRT_2)
-}
-
-fn norm_pdf(x: f64) -> f64 {
-    const INV_SQRT_2PI: f64 = 0.3989422804014326779399460599343819_f64;
-    INV_SQRT_2PI * (-0.5 * x * x).exp()
 }
 
 /// Returns true if the given SVI curve has butterfly arbitrage, or an error if there was an issue with the calculation.

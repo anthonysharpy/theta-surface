@@ -17,16 +17,6 @@ pub struct OptionInstrument {
     pub spot_price: f64,
     pub bid_price: f64,
     pub ask_price: f64,
-    /// The theta according to the API we originally got this data from.
-    pub external_theta: f64,
-    /// The delta according to the API we originally got this data from.
-    pub external_delta: f64,
-    /// The gamma according to the API we originally got this data from.
-    pub external_gamma: f64,
-    /// The vega according to the API we originally got this data from.
-    pub external_vega: f64,
-    /// The rho according to the API we originally got this data from.
-    pub external_rho: f64,
     implied_volatility: Cell<Option<f64>>,
     total_implied_variance: Cell<Option<f64>>,
     /// The forward spot price according to the API we originally got this data from.
@@ -42,11 +32,6 @@ impl OptionInstrument {
         instrument_id: Box<str>,
         option_type: OptionType,
         spot_price: f64,
-        external_theta: f64,
-        external_delta: f64,
-        external_gamma: f64,
-        external_vega: f64,
-        external_rho: f64,
         external_forward_price: f64,
         bid_price: f64,
         ask_price: f64,
@@ -58,11 +43,6 @@ impl OptionInstrument {
             instrument_id: instrument_id,
             option_type: option_type,
             spot_price: spot_price,
-            external_theta: external_theta,
-            external_delta: external_delta,
-            external_gamma: external_gamma,
-            external_vega: external_vega,
-            external_rho: external_rho,
             external_forward_price: external_forward_price,
             implied_volatility: Cell::new(None),
             total_implied_variance: Cell::new(None),

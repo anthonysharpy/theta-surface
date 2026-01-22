@@ -1,83 +1,10 @@
 #![cfg(test)]
 
-use crate::analytics::math::black_scholes_d1;
-use crate::analytics::math::black_scholes_d2;
 use crate::analytics::math::calculate_black_scholes;
 use crate::analytics::math::calculate_bs_implied_volatility;
-use crate::analytics::math::calculate_delta;
-use crate::analytics::math::calculate_gamma;
-use crate::analytics::math::calculate_rho;
-use crate::analytics::math::calculate_theta;
-use crate::analytics::math::calculate_vega;
 use crate::types::UnsolveableError;
 
 use super::*;
-
-#[test]
-fn test_calculate_delta() {
-    let res = calculate_delta(OptionType::Call, black_scholes_d1(100.0, 100.0, 0.06, 0.16, 0.5));
-    assert_eq!(res, 0.6261727339722484);
-
-    let res = calculate_delta(OptionType::Call, black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5));
-    assert_eq!(res, 0.13806605417013307);
-
-    let res = calculate_delta(OptionType::Put, black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5));
-    assert_eq!(res, -0.8619339458298669);
-}
-
-#[test]
-fn test_calculate_gamma() {
-    let res = calculate_gamma(black_scholes_d1(35.0, 35.0, 0.025, 0.3, 20.0 / 365.0), 35.0, 0.3, 20.0 / 365.0);
-    assert_eq!(res, 0.16207065789910274);
-
-    let res = calculate_gamma(black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5), 80.0, 0.25, 0.5);
-    assert_eq!(res, 0.01559021978674716);
-}
-
-#[test]
-fn test_calculate_vega() {
-    let res = calculate_vega(black_scholes_d1(300.0, 300.0, 0.03, 0.3, 0.084), 300.0, 0.084);
-    assert_eq!(res, 34.596402455458765);
-
-    let res = calculate_vega(black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5), 80.0, 0.5);
-    assert_eq!(res, 12.472175829397727);
-}
-
-#[test]
-fn test_calculate_theta() {
-    let d1 = black_scholes_d1(300.0, 300.0, 0.03, 0.3, 0.084);
-    let d2 = black_scholes_d2(d1, 0.3, 0.084);
-    let res = calculate_theta(d1, d2, 300.0, 0.3, 0.084, 0.03, 300.0, OptionType::Call);
-    assert_eq!(res, -66.21606613898078);
-
-    let d1 = black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5);
-    let d2 = black_scholes_d2(d1, 0.25, 0.5);
-    let res = calculate_theta(d1, d2, 80.0, 0.25, 0.5, 0.03, 100.0, OptionType::Call);
-    assert_eq!(res, -3.421816063314899);
-
-    let d1 = black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5);
-    let d2 = black_scholes_d2(d1, 0.25, 0.5);
-    let res = calculate_theta(d1, d2, 80.0, 0.25, 0.5, 0.03, 100.0, OptionType::Put);
-    assert_eq!(res, -0.466480244505711);
-}
-
-#[test]
-fn test_calculate_rho() {
-    let d1 = black_scholes_d1(45.0, 50.0, 0.01, 0.25, 1.0);
-    let d2 = black_scholes_d2(d1, 0.25, 1.0);
-    let res = calculate_rho(d2, 1.0, 0.01, 50.0, OptionType::Call);
-    assert_eq!(res, 15.161285362106087);
-
-    let d1 = black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5);
-    let d2 = black_scholes_d2(d1, 0.25, 0.5);
-    let res = calculate_rho(d2, 0.5, 0.03, 100.0, OptionType::Call);
-    assert_eq!(res, 5.062868432757791);
-
-    let d1 = black_scholes_d1(80.0, 100.0, 0.03, 0.25, 0.5);
-    let d2 = black_scholes_d2(d1, 0.25, 0.5);
-    let res = calculate_rho(d2, 0.5, 0.03, 100.0, OptionType::Put);
-    assert_eq!(res, -44.19272854739534);
-}
 
 #[test]
 fn test_calculate_bs_implied_volatility() {

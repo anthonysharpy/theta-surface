@@ -46,16 +46,6 @@ impl SVICurveParameters {
         Vector5::new(self.a, self.b, self.p, self.m, self.o)
     }
 
-    pub fn set_params(&mut self, a: f64, b: f64, p: f64, m: f64, o: f64) {
-        self.a = a;
-        self.b = b;
-        self.p = p;
-        self.m = m;
-        self.o = o;
-
-        Self::check_valid(self).unwrap_or_else(|e| panic!("{}", e.reason));
-    }
-
     pub fn get_a(&self) -> f64 {
         self.a
     }
