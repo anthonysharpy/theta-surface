@@ -1,5 +1,9 @@
 black scholes explodes if expiry is 0.00001 years
 black scholes explodes if volatility is 0
 
-can implement newton method for solving implied volatility for a potential speedup
-fix unsafe unwraps
+check unsafe unwraps
+
+unused code
+can we speed up data download?
+lots of errors when building surface
+fuzzing tests to test for bullshit crashes etc
