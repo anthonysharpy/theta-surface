@@ -1,3 +1,5 @@
+use nalgebra::Vector5;
+
 use crate::{analytics::SmileGraph, types::UnsolveableError};
 
 // The parameters that define the SVI smile curve function
@@ -38,6 +40,10 @@ impl SVICurveParameters {
         Self::check_valid(&params)?;
 
         Ok(params)
+    }
+
+    pub fn to_vector(&self) -> Vector5<f64> {
+        Vector5::new(self.a, self.b, self.p, self.m, self.o)
     }
 
     pub fn set_params(&mut self, a: f64, b: f64, p: f64, m: f64, o: f64) {

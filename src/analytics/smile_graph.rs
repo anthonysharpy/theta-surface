@@ -1,5 +1,9 @@
 use core::f64;
-use std::{cell::Cell, f64::consts::E};
+use std::{
+    cell::Cell,
+    f64::consts::E,
+    io::{self, Write},
+};
 
 use chrono::{DateTime, Utc};
 use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
@@ -164,33 +168,130 @@ impl SmileGraph {
         Ok(())
     }
 
-    /// Using the provided options, calculate the smile shape that best represents the data with the least error.
-    pub fn fit_smile(&mut self) -> Result<(), UnsolveableError> {
-        let result = {
-            let problem = SVIProblem {
-                // The initial guess for the SVI function.
-                p: Vector5::new(0.1, 0.2, -0.2, 0.1, 0.5), // These defaults are terrible!!!!!!!!!!!!!!!!
-                smile_graph: self,
-                curve_valid: true,
-                has_arbitrage: false,
-                curve: Some(SVICurveParameters::new_empty()),
-            };
-
-            // Library default for patience is 100.
-            let (result, report) = LevenbergMarquardt::new().with_patience(100).minimize(problem);
-
-            if !report.termination.was_successful() {
-                return Err(UnsolveableError::new(format!("Failed computing Levenberg-Marquardt: {:#?}", report.termination)));
-            }
-
-            let fit_err = report.objective_function.abs();
-            println!("Smile fit with error of {fit_err}...");
-            result.p
+    /// Optimise the given SVI curve parameters, returning optimised parameters and their loss.
+    fn optimise_svi_params(&self, params: SVICurveParameters) -> Result<(SVICurveParameters, f64), UnsolveableError> {
+        let problem = SVIProblem {
+            // The initial guess for the SVI function.
+            p: params.to_vector(),
+            smile_graph: self,
+            curve_valid: true,
+            has_arbitrage: false,
+            curve: Some(SVICurveParameters::new_empty()),
         };
 
-        self.svi_curve_parameters
-            .set_params(result.x, result.y, result.z, result.w, result.a);
+        // Library default for patience is 100.
+        let (result, report) = LevenbergMarquardt::new().with_patience(100).minimize(problem);
+
+        if !report.termination.was_successful() {
+            return Err(UnsolveableError::new(format!("Failed computing Levenberg-Marquardt: {:#?}", report.termination)));
+        }
+
+        Ok((result.curve.unwrap(), report.objective_function.abs()))
+    }
+
+    /// Using the provided options, calculate the smile shape that best represents the data with the least error.
+    pub fn fit_smile(&mut self) -> Result<(), UnsolveableError> {
+        let mut best_error = f64::MAX;
+        let mut best_params: Option<SVICurveParameters> = None;
+
+        // From testing it seems that the initial guesses when optimising the SVI function make a huge difference
+        // in the overall error. So we need to try lots of different options.
+        // We're going to brute force it. There are much better mathematically and algorithmically sound ways of doing this,
+        // but I don't want to spend ages on this so we'll just do it like this for now.
+        //
+        // Some of these parameters have well-established valid ranges. Others like a and m are theoretically unbounded,
+        // however we'll just iterate through the values within a realistic range for our data.
+
+        // Higher values are faster but not as thorough. Default = 1.0. But 4.0 is a good value.
+        let speed = 4.0;
+
+        // We'll often end up with *_iterations being a decimal value. We'll account for this by shifting
+        // the calculated values up by the remainder/2. This way, all values will revolve around the same midpoint, even
+        // if we end up clipping the starts and ends a bit.
+
+        // Default range: -2...2.
+        let a_iterations = (40.0_f64 / speed).floor() as u64;
+        let a_offset = ((40.0_f64 / speed) - (40.0_f64 / speed).floor()) * 0.5;
+        let a_step = 0.1 * speed;
+
+        // Default range: 0...1.
+        let b_iterations = (10.0_f64 / speed).floor() as u64;
+        let b_offset = ((10.0_f64 / speed) - (10.0_f64 / speed).floor()) * 0.5;
+        let b_step = 0.1 * speed;
+
+        // Default range: -0.9...0.9.
+        let p_iterations = (18.0_f64 / speed).floor() as u64;
+        let p_offset = ((18.0_f64 / speed) - (18.0_f64 / speed).floor()) * 0.5;
+        let p_step = 0.1 * speed;
+
+        // Default range: -2...2.
+        let m_iterations = (40.0_f64 / speed).floor() as u64;
+        let m_offset = ((40.0_f64 / speed) - (40.0_f64 / speed).floor()) * 0.5;
+        let m_step = 0.1 * speed;
+
+        // Default range: 0.1...1.
+        let o_iterations = (9.0_f64 / speed).floor() as u64;
+        let o_offset = ((9.0_f64 / speed) - (9.0_f64 / speed).floor()) * 0.5;
+        let o_step = 0.1 * speed;
+
+        for an in 0..=a_iterations {
+            let a = -2.0 + a_offset + (a_step * an as f64);
+            print!("\r\x1b[2KProgress: {}%", an as f64 / a_iterations as f64 * 100.0);
+            io::stdout().flush().unwrap();
+
+            for bn in 0..=b_iterations {
+                let b = b_offset + (b_step * bn as f64);
+                //println!("b={b}");
+
+                for pn in 0..=p_iterations {
+                    let p = -0.9 + p_offset + (p_step * pn as f64);
+                    // println!("p={p}");
+
+                    for mn in 0..=m_iterations {
+                        let m = -2.0 + m_offset + (m_step * mn as f64);
+                        // println!("m={m}");
+
+                        for on in 0..=o_iterations {
+                            let o = 0.1 + o_offset + (o_step * on as f64);
+                            // println!("o={o}");
+
+                            let new_params = SVICurveParameters::new_from_values(a, b, p, m, o);
+
+                            if new_params.is_err() {
+                                continue;
+                            }
+
+                            let result = self.optimise_svi_params(new_params.unwrap());
+
+                            if result.is_err() {
+                                continue;
+                            }
+
+                            let (optimised_params, error) = result.unwrap();
+
+                            if error < best_error {
+                                best_error = error;
+                                best_params = Some(optimised_params);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Panic if nothing found.
+        self.svi_curve_parameters = best_params.unwrap();
         self.has_been_fit = true;
+
+        println!("\r\x1b[2KSmile fit with error of {best_error}...");
+        println!(
+            "Final params: a={}, b={}, p={}, m={}, o={}...",
+            self.svi_curve_parameters.get_a(),
+            self.svi_curve_parameters.get_b(),
+            self.svi_curve_parameters.get_p(),
+            self.svi_curve_parameters.get_m(),
+            self.svi_curve_parameters.get_o()
+        );
 
         Ok(())
     }
