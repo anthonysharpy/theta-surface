@@ -380,6 +380,8 @@ pub fn has_butterfly_arbitrage(
     forward_price: f64,
     resolution: u64,
 ) -> Result<bool, UnsolveableError> {
+    assert!(resolution > 0);
+
     let range = to_strike - from_strike;
     let step_size = range as f64 / resolution as f64;
 
