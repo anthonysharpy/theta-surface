@@ -7,6 +7,13 @@ use crate::analytics::{self, SmileGraph, SmileGraphsDataContainer};
 use crate::fileio;
 use plotters::prelude::*;
 
+/// A point on the graph representing data from one option.
+struct OptionGraphPoint {
+    strike: f64,
+    smile_relative_implied_volatility: f64,
+    self_relative_implied_volatility: f64,
+}
+
 pub fn build_graphs() {
     println!("===============================================================");
     println!("===============================================================");
@@ -24,7 +31,8 @@ pub fn build_graphs() {
 
     for graph in graphs_data.smile_graphs {
         let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility) =
-            build_graph_data(&graph, 400);
+            build_graph_lines(&graph, 400);
+        let option_points = build_graph_points(&graph);
 
         create_graph(
             DateTime::from_timestamp_secs(graph.get_seconds_until_expiry()).unwrap(),
@@ -32,6 +40,7 @@ pub fn build_graphs() {
             first_quarter_points,
             middle_points,
             last_quarter_points,
+            option_points,
         );
     }
 
@@ -39,11 +48,31 @@ pub fn build_graphs() {
     println!("===============================================================");
 }
 
+/// Get the points on the graphs.
+fn build_graph_points(smile_graph: &SmileGraph) -> Vec<OptionGraphPoint> {
+    let mut points: Vec<OptionGraphPoint> = Vec::new();
+
+    for option in &smile_graph.options {
+        let log_moneyness = (option.strike / smile_graph.get_underlying_forward_price()).ln();
+        let expiry = smile_graph.get_years_until_expiry();
+        let implied_variance = analytics::svi_variance(&smile_graph.svi_curve_parameters, log_moneyness).unwrap();
+        let implied_volatility = (implied_variance / expiry).sqrt();
+
+        points.push(OptionGraphPoint {
+            strike: option.strike,
+            smile_relative_implied_volatility: implied_volatility,
+            self_relative_implied_volatility: option.get_implied_volatility().unwrap(),
+        });
+    }
+
+    points
+}
+
 /// # Arguments
 ///
 /// * `graph` - The smile graph object.
 /// * `number_of_points` - The number of discrete points the graph should have. Higher values will result in a smoother graph.
-fn build_graph_data(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64) {
+fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64) {
     assert!(number_of_points.is_multiple_of(4));
 
     let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();
@@ -178,6 +207,7 @@ fn create_graph(
     extrapolated_first_quarter_points: Vec<(f64, f64)>,
     observed_data_points: Vec<(f64, f64)>,
     extrapolated_last_quarter_points: Vec<(f64, f64)>,
+    option_points: Vec<OptionGraphPoint>,
 ) {
     let path = format!("./data/graphs/btc-smile-graph-{}.png", expiry.format("%Y-%m-%d"));
     let root = BitMapBackend::new(&path, (1920, 1080)).into_drawing_area();
@@ -223,6 +253,26 @@ fn create_graph(
     chart
         .draw_series(LineSeries::new(extrapolated_last_quarter_points, &GREY))
         .expect("Drawing graph series failed");
+
+    chart
+        .draw_series(PointSeries::<_, _, Circle<_, _>, _>::new(
+            option_points.iter().map(|x| (x.strike, x.smile_relative_implied_volatility)),
+            5,
+            BLUE.filled(),
+        ))
+        .expect("Drawing option points failed")
+        .label("Smile-relative implied volatility")
+        .legend(|(x, y)| Circle::new((x, y), 5, BLUE.filled()));
+
+    chart
+        .draw_series(PointSeries::<_, _, Circle<_, _>, _>::new(
+            option_points.iter().map(|x| (x.strike, x.self_relative_implied_volatility)),
+            5,
+            GREY.filled(),
+        ))
+        .expect("Drawing option points failed")
+        .label("Self-relative implied volatility")
+        .legend(|(x, y)| Circle::new((x, y), 5, GREY.filled()));
 
     chart
         .configure_series_labels()

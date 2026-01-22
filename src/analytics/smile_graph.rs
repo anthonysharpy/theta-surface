@@ -19,7 +19,6 @@ use crate::{
 /// expiry.
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct SmileGraph {
-    #[serde(skip)]
     pub options: Vec<OptionInstrument>,
     #[serde(skip)]
     pub has_been_fit: bool,

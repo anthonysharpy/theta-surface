@@ -8,7 +8,9 @@ use crate::{
     types::UnsolveableError,
 };
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct OptionInstrument {
+    #[serde(skip)]
     expiration: DateTime<Utc>,
     pub strike: f64,
     pub price: f64,

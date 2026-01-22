@@ -104,7 +104,7 @@ impl SVICurveParameters {
     }
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub enum OptionType {
     Call = 1,
     Put = 2,
