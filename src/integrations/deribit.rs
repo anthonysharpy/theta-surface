@@ -96,10 +96,11 @@ pub struct DeribitOptionInstrument {
 impl DeribitOptionInstrument {
     pub fn to_option(&self) -> Result<OptionInstrument, UnusableAPIDataError> {
         let ticker_data = self.ticker_data.as_ref().unwrap();
+        let index_price = ticker_data.index_price.to_f64().unwrap();
 
-        let price = match self.base_currency.as_ref() {
+        let price = match self.quote_currency.as_ref() {
             "USD" => ticker_data.mark_price.to_f64().unwrap(),
-            "BTC" => ticker_data.mark_price.to_f64().unwrap() * ticker_data.index_price.to_f64().unwrap(),
+            "BTC" => ticker_data.mark_price.to_f64().unwrap() * index_price,
             other => return Err(UnusableAPIDataError::new(format!("Unknown currency {other}"))),
         };
 
@@ -109,10 +110,10 @@ impl DeribitOptionInstrument {
             self.strike.to_f64().unwrap(),
             self.instrument_id.to_string().into_boxed_str(),
             OptionType::from_string(&self.option_type),
-            ticker_data.index_price.to_f64().unwrap(),
+            index_price,
             ticker_data.underlying_price.unwrap().to_f64().unwrap(),
-            ticker_data.best_bid_price.to_f64().unwrap(),
-            ticker_data.best_ask_price.to_f64().unwrap(),
+            ticker_data.best_bid_price.to_f64().unwrap() * index_price,
+            ticker_data.best_ask_price.to_f64().unwrap() * index_price,
         ))
     }
 }
