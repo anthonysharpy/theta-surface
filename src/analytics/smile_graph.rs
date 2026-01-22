@@ -190,7 +190,8 @@ impl SmileGraph {
     }
 
     /// Using the provided options, calculate the smile shape that best represents the data with the least error.
-    pub fn fit_smile(&mut self) -> Result<(), UnsolveableError> {
+    /// Returns the error on success.
+    pub fn fit_smile(&mut self) -> Result<f64, UnsolveableError> {
         let mut best_error = f64::MAX;
         let mut best_params: Option<SVICurveParameters> = None;
 
@@ -293,7 +294,7 @@ impl SmileGraph {
             self.svi_curve_parameters.get_o()
         );
 
-        Ok(())
+        Ok(best_error)
     }
 
     /// Checks if this smile graph is valid and generally safe for use. If not, a reason is returned as a string.

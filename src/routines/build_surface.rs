@@ -125,6 +125,7 @@ fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) {
 
     let mut succeeded_smiles = 0;
     let mut failed_smiles = 0;
+    let mut total_error = 0.0;
 
     for graph in smile_graphs.iter_mut() {
         let current_smile = succeeded_smiles + failed_smiles + 1;
@@ -136,13 +137,15 @@ fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) {
                 let reason = e.reason;
                 println!("Failed fitting smile: {reason}...");
             }
-            Ok(_) => {
+            Ok(error) => {
                 succeeded_smiles += 1;
+                total_error += error;
             }
         }
     }
 
-    println!("Successfully fit {}/{} smiles", succeeded_smiles, smile_graphs.len());
+    println!("Successfully fit {}/{} smiles...", succeeded_smiles, smile_graphs.len());
+    println!("Average fit error was {}", total_error / succeeded_smiles as f64);
 }
 
 fn save_data_to_file(smiles: Vec<SmileGraph>) {
