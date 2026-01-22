@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     analytics::{OptionType, math::calculate_bs_implied_volatility},
+    constants,
     types::UnsolveableError,
 };
 
@@ -84,12 +85,11 @@ impl OptionInstrument {
             return Ok(self.implied_volatility.get().unwrap());
         }
 
-        // mention why we are hardcoding 0.03 here!!!!!!!
         let implied_volatility = calculate_bs_implied_volatility(
             self.spot_price,
             self.strike,
             self.get_years_until_expiry(),
-            0.03,
+            constants::INTEREST_FREE_RATE,
             self.price,
             self.option_type,
         );

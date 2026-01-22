@@ -11,6 +11,7 @@ use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
 use crate::{
     analytics::{OptionInstrument, OptionType, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
+    constants,
     types::UnsolveableError,
 };
 
@@ -80,10 +81,12 @@ impl SmileGraph {
                 continue;
             }
 
-            let low =
-                strike + ((call_option.bid_price - put_option.ask_price) * E.powf(0.03 * call_option.get_years_until_expiry()));
-            let high =
-                strike + ((call_option.ask_price - put_option.bid_price) * E.powf(0.03 * call_option.get_years_until_expiry()));
+            let low = strike
+                + ((call_option.bid_price - put_option.ask_price)
+                    * E.powf(constants::INTEREST_FREE_RATE * call_option.get_years_until_expiry()));
+            let high = strike
+                + ((call_option.ask_price - put_option.bid_price)
+                    * E.powf(constants::INTEREST_FREE_RATE * call_option.get_years_until_expiry()));
 
             // Avoid nonsense.
             if high < low {
@@ -97,7 +100,8 @@ impl SmileGraph {
                 best_uncertainty = uncertainty;
 
                 // Match the way forward price is calculated for implied volatility.
-                forward_price = Some(call_option.spot_price * E.powf(0.03 * call_option.get_years_until_expiry()));
+                forward_price =
+                    Some(call_option.spot_price * E.powf(constants::INTEREST_FREE_RATE * call_option.get_years_until_expiry()));
             }
         }
 
@@ -367,13 +371,12 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
     fn residuals(&self) -> Option<Matrix<f64, Dyn, U1, Self::ResidualStorage>> {
         // We'll use this if we deem the parameters or arbitrage etc to be no good. Usually we see loss of < 1 in the fitted
         // graph, so this is a very high amount.
-        let fail_loss = 999.0;
         let mut residuals: Vec<f64> = Vec::new();
 
         for option in &self.smile_graph.options {
             // These params are garbage, push a very high loss.
             if !self.curve_valid || self.has_arbitrage {
-                residuals.push(fail_loss);
+                residuals.push(constants::INVALID_SVI_LOSS);
                 continue;
             }
 
