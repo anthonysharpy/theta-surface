@@ -8,3 +8,6 @@ pub const INVALID_SVI_LOSS: f64 = 999.0;
 /// the futures data, it seems this is typically implied to be around 5-8%, depending on expiry. So we'll use a sensible
 /// default in that range.
 pub const INTEREST_FREE_RATE: f64 = 0.06;
+
+/// The minimum number of options a smile must have in order to be valid.
+pub const SMILE_MIN_OPTIONS_REQURED: u64 = 5;

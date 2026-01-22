@@ -302,9 +302,13 @@ impl SmileGraph {
     }
 
     /// Checks if this smile graph is valid and generally safe for use. If not, a reason is returned as a string.
-    pub fn is_valid(&self) -> Result<(), &str> {
-        if self.options.len() <= 0 {
-            return Err("The smile graph contains no options");
+    pub fn is_valid(&self) -> Result<(), String> {
+        if (self.options.len() as u64) < constants::SMILE_MIN_OPTIONS_REQURED {
+            return Err(format!(
+                "The smile graph must contain at least {} options, found {}",
+                constants::SMILE_MIN_OPTIONS_REQURED,
+                self.options.len()
+            ));
         }
 
         Ok(())
