@@ -57,7 +57,7 @@ pub fn calculate_bs_implied_volatility(
 
     // Define our bounds for the volatility. We'll use some sensible defaults.
     let mut bounds_start: f64 = 0.0;
-    let mut bounds_end: f64 = 1.0;
+    let mut bounds_end: f64 = 2.0;
 
     // We've found the implied volatility when the BS calculation is equal to the actual option price. In reality, we can usually
     // only approximate this, so we'll also accept a certain degree of error.
