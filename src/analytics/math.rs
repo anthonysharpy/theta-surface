@@ -321,7 +321,6 @@ pub fn calculate_black_scholes(
 
     assert!(asset_spot_price > 0.0);
     assert!(strike_price > 0.0);
-    assert!(risk_free_interest_rate >= 0.0);
     assert!(volatility >= 0.0);
 
     let d1 = black_scholes_d1(asset_spot_price, strike_price, risk_free_interest_rate, volatility, years_until_expiry);
