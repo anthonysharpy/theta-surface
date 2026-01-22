@@ -40,7 +40,7 @@ cargo build
 
 _**fetch-market-data**_
 
-- Bitcoin option data is downloaded from Deribit's public stock market data API. An option is a contract granting the right to buy a commodity (in this case Bitcoin) at a pre-determined price (**strike price**) on a pre-determined date (**expiry**).
+- Bitcoin option data is downloaded from Deribit's public cryptocurrency API. An option is a contract granting the right to buy or sell an asset (in this case Bitcoin) at a pre-determined price (**strike price**) on a pre-determined date (**expiry**).
 - This data is saved to file.
 
 _**build-surface**_
