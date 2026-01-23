@@ -48,66 +48,11 @@ impl SmileGraph {
         }
     }
 
-    /// Using the options we have, calculate the forward price (of the underlying) that best represents all of the options.
-    /// When we fit a smile graph, we must always use the same forward price.
-    /// We'll pick the pair of call/put options that indicate the least uncertainty, judging by the forward-adjusted spread
-    /// of bid/ask prices. This is likely not the most optimal approach but it should more or less do the job.
+    /// Get the forward price that best represents all of the options. In reality, since we have normalised all the
+    /// options to have the same spot price, it doesn't matter much how we calculate this. The only real guess here
+    /// is the interest free rate.
     pub fn get_underlying_forward_price(&self) -> f64 {
-        if self.forward_price.get().is_some() {
-            return self.forward_price.get().unwrap();
-        }
-
-        let call_options = self.options.iter().filter(|x| x.option_type == OptionType::Call);
-        let mut best_uncertainty = f64::MAX;
-        let mut forward_price: Option<f64> = None;
-
-        for call_option in call_options {
-            let strike = call_option.strike;
-            let maybe_put_option = self
-                .options
-                .iter()
-                .find(|x| x.option_type == OptionType::Put && x.strike == call_option.strike);
-
-            // Maybe there is no call/put pair for this strike price.
-            if maybe_put_option.is_none() {
-                continue;
-            }
-
-            let put_option = maybe_put_option.unwrap();
-
-            // Avoid nonsense numbers.
-            if call_option.bid_price > call_option.ask_price || put_option.bid_price > put_option.ask_price {
-                continue;
-            }
-
-            let low = strike
-                + ((call_option.bid_price - put_option.ask_price)
-                    * E.powf(constants::INTEREST_FREE_RATE * call_option.get_years_until_expiry()));
-            let high = strike
-                + ((call_option.ask_price - put_option.bid_price)
-                    * E.powf(constants::INTEREST_FREE_RATE * call_option.get_years_until_expiry()));
-
-            // Avoid nonsense.
-            if high < low {
-                continue;
-            }
-
-            // The difference between low and high represents the uncertainty of the pricing.
-            let uncertainty = high - low;
-
-            if uncertainty < best_uncertainty {
-                best_uncertainty = uncertainty;
-
-                // Match the way forward price is calculated for implied volatility.
-                forward_price =
-                    Some(call_option.spot_price * E.powf(constants::INTEREST_FREE_RATE * call_option.get_years_until_expiry()));
-            }
-        }
-
-        self.forward_price.set(forward_price);
-
-        // Panic if we don't find anything.
-        self.forward_price.get().unwrap()
+        self.options[0].spot_price * E.powf(constants::INTEREST_FREE_RATE * self.options[0].get_years_until_expiry())
     }
 
     pub fn get_years_until_expiry(&self) -> f64 {
