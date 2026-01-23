@@ -330,6 +330,9 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
             }
 
             let log_moneyness = option.get_log_moneyness(Some(self.smile_graph.get_underlying_forward_price()));
+
+            // This uses the option's own forward price. Which would probably be wrong were it not for the fact that
+            // all options of the same expiry are given the same spot price (and therefore forward price).
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
             // Do this even if constants::VALIDATE_SVI is false, because allowing this will probably mess with the error
