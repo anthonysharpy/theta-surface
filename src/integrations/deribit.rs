@@ -59,12 +59,6 @@ pub struct DeribitTickerData {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct DeribitIndexPrice {
-    pub estimated_delivery_price: Decimal,
-    pub index_price: Decimal,
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
 pub struct DeribitOptionInstrument {
     pub price_index: Box<str>,
     pub kind: Box<str>,
@@ -122,5 +116,4 @@ impl DeribitOptionInstrument {
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DeribitDataContainer {
     pub options: Vec<DeribitOptionInstrument>,
-    pub index_price: DeribitIndexPrice,
 }
