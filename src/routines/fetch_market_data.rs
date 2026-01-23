@@ -1,6 +1,5 @@
 use crate::fileio;
 use crate::integrations::DeribitDataContainer;
-use crate::integrations::DeribitIndexPrice;
 use crate::integrations::DeribitOptionInstrument;
 use crate::integrations::DeribitTickerData;
 use crate::network;

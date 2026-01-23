@@ -10,7 +10,7 @@ use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
 use crate::{
-    analytics::{OptionInstrument, OptionType, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
+    analytics::{OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
     constants,
     types::UnsolveableError,
 };
