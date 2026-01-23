@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::analytics::{OptionInstrument, SmileGraph, SmileGraphsDataContainer};
-use crate::fileio;
 use crate::integrations::DeribitDataContainer;
+use crate::{constants, fileio};
 
 pub fn build_surface() {
     println!("===============================================================");
@@ -48,6 +48,14 @@ fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Vec<O
     let mut options: Vec<OptionInstrument> = Vec::new();
 
     for api_option in data.options {
+        if constants::ONLY_PROCESS_SMILE_DATE.is_some() {
+            if api_option.expiration_timestamp != constants::ONLY_PROCESS_SMILE_DATE.unwrap() * 1000 {
+                println!("Discarding option due to ONLY_PROCESS_SMILE_DATE flag ({})...", api_option.instrument_name);
+                discarded_options += 1;
+                continue;
+            }
+        }
+
         let internal_option = api_option.to_option();
 
         if internal_option.is_err() {

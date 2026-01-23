@@ -13,10 +13,13 @@ pub const INTEREST_FREE_RATE: f64 = 0.06;
 /// The minimum number of options a smile must have in order to be valid.
 pub const SMILE_MIN_OPTIONS_REQURED: u64 = 5;
 
-// If false, the program can produce output that is invalid mathematically. If setting this to false appears to improve the
-// fit of the final graph, there may be an issue with the way it is being fit.
+/// If false, the program can produce output that is invalid mathematically. If setting this to false appears to improve the
+/// fit of the final graph, there may be an issue with the way it is being fit.
 pub const VALIDATE_SVI: bool = false;
 
-// If false, the program won't assert that output is free from arbitrage. If setting this to false appears to improve the
-// fit of the final graph, there may be an issue with the way it is being fit.
+/// If false, the program won't assert that output is free from arbitrage. If setting this to false appears to improve the
+/// fit of the final graph, there may be an issue with the way it is being fit.
 pub const CHECK_FOR_ARBITRAGE: bool = false;
+
+/// Only process the smile with this timestamp (seconds). Useful for debugging.
+pub const ONLY_PROCESS_SMILE_DATE: Option<u64> = Some(1769500800);
