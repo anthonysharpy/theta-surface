@@ -317,8 +317,6 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
     }
 
     fn residuals(&self) -> Option<Matrix<f64, Dyn, U1, Self::ResidualStorage>> {
-        // We'll use this if we deem the parameters or arbitrage etc to be no good. Usually we see loss of < 1 in the fitted
-        // graph, so this is a very high amount.
         let mut residuals: Vec<f64> = Vec::new();
 
         for option in &self.smile_graph.options {
