@@ -1,3 +1,4 @@
+use core::f64;
 use std::cmp::max;
 
 use chrono::{DateTime, Utc};
@@ -30,13 +31,13 @@ pub fn build_graphs() {
     println!("Creating graphs and saving to file...");
 
     for graph in graphs_data.smile_graphs {
-        let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility) =
+        let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility_1) =
             build_graph_lines(&graph, 400);
-        let option_points = build_graph_points(&graph);
+        let (option_points, highest_implied_volatility_2) = build_graph_points(&graph);
 
         create_graph(
             DateTime::from_timestamp_secs(graph.get_seconds_until_expiry()).unwrap(),
-            highest_implied_volatility,
+            highest_implied_volatility_1.max(highest_implied_volatility_2),
             first_quarter_points,
             middle_points,
             last_quarter_points,
@@ -48,24 +49,42 @@ pub fn build_graphs() {
     println!("===============================================================");
 }
 
-/// Get the points on the graphs.
-fn build_graph_points(smile_graph: &SmileGraph) -> Vec<OptionGraphPoint> {
+/// Get the points on the graphs. Also returns the highest found implied volatility as the last parameter.
+fn build_graph_points(smile_graph: &SmileGraph) -> (Vec<OptionGraphPoint>, f64) {
     let mut points: Vec<OptionGraphPoint> = Vec::new();
+    let mut highest_implied_volatility = f64::MIN;
 
     for option in &smile_graph.options {
         let log_moneyness = (option.strike / smile_graph.get_underlying_forward_price()).ln();
         let expiry = smile_graph.get_years_until_expiry();
         let implied_variance = analytics::svi_variance(&smile_graph.svi_curve_parameters, log_moneyness).unwrap();
         let implied_volatility = (implied_variance / expiry).sqrt();
+        let self_implied_volatility = option.get_implied_volatility().unwrap();
+
+        assert!(
+            implied_volatility < 20.0,
+            "implied_volatility was massive ({implied_volatility}), something has gone very wrong"
+        );
+        assert!(
+            self_implied_volatility < 20.0,
+            "self_implied_volatility was massive ({self_implied_volatility}), something has gone very wrong"
+        );
+
+        if implied_volatility > highest_implied_volatility {
+            highest_implied_volatility = implied_volatility;
+        }
+        if self_implied_volatility > highest_implied_volatility {
+            highest_implied_volatility = self_implied_volatility;
+        }
 
         points.push(OptionGraphPoint {
             strike: option.strike,
             smile_relative_implied_volatility: implied_volatility,
-            self_relative_implied_volatility: option.get_implied_volatility().unwrap(),
+            self_relative_implied_volatility: self_implied_volatility,
         });
     }
 
-    points
+    (points, highest_implied_volatility)
 }
 
 /// # Arguments
@@ -216,8 +235,8 @@ fn create_graph(
 
     root.fill(&WHITE).expect("Filling graph failed");
 
-    // Don't let x get stupidly small.
-    let min_x = max(-5000, extrapolated_first_quarter_points.first().unwrap().0 as i64);
+    // Keep x >= 0.
+    let min_x = max(0, extrapolated_first_quarter_points.first().unwrap().0 as i64);
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
@@ -227,7 +246,7 @@ fn create_graph(
         .margin(15)
         .x_label_area_size(50)
         .y_label_area_size(50)
-        .build_cartesian_2d(min_x as f64..extrapolated_last_quarter_points.last().unwrap().0, -0.1..y_finish)
+        .build_cartesian_2d(min_x as f64..extrapolated_last_quarter_points.last().unwrap().0, 0.0..y_finish * 1.05)
         .expect("Building graph failed");
 
     chart
