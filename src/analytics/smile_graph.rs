@@ -293,7 +293,7 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
 
         self.has_arbitrage = false;
 
-        if self.curve_valid {
+        if self.curve_valid && constants::CHECK_FOR_ARBITRAGE {
             // If there is arbitrage then this curve is mathematically invalid. Fail it.
             if has_butterfly_arbitrage(
                 self.curve.as_ref().unwrap(),
@@ -321,14 +321,19 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
 
         for option in &self.smile_graph.options {
             // These params are garbage, push a very high loss.
-            if !self.curve_valid || self.has_arbitrage {
-                residuals.push(constants::INVALID_SVI_LOSS);
-                continue;
+            // We have already checked constants::VALIDATE_SVI by this point.
+            if !self.curve_valid {
+                return None;
+            }
+            if self.has_arbitrage && constants::CHECK_FOR_ARBITRAGE {
+                return None;
             }
 
             let log_moneyness = option.get_log_moneyness(Some(self.smile_graph.get_underlying_forward_price()));
             let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
 
+            // Do this even if constants::VALIDATE_SVI is false, because allowing this will probably mess with the error
+            // function.
             let svi_variance = svi_variance(self.curve.as_ref().unwrap(), log_moneyness)
                 .unwrap_or_else(|e| panic!("SVI variance was unsolveable: {}", e.reason));
 
@@ -352,13 +357,12 @@ impl LeastSquaresProblem<f64, Dyn, U5> for SVIProblem<'_> {
         // Build the Jacobians matrix.
         for option in &self.smile_graph.options {
             // Curve is rubbish so just push 0 for everything to punish the algorithm.
-            if !self.curve_valid || self.has_arbitrage {
-                jacobians.push(0.0);
-                jacobians.push(0.0);
-                jacobians.push(0.0);
-                jacobians.push(0.0);
-                jacobians.push(0.0);
-                continue;
+            if self.has_arbitrage && constants::CHECK_FOR_ARBITRAGE {
+                return None;
+            }
+            // We have already checked constants::VALIDATE_SVI by this point.
+            if !self.curve_valid {
+                return None;
             }
 
             // d and s come directly from the SVI equation. By using them we make writing the derivatives below simpler.

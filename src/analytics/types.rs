@@ -1,6 +1,6 @@
 use nalgebra::Vector5;
 
-use crate::{analytics::SmileGraph, types::UnsolveableError};
+use crate::{analytics::SmileGraph, constants, types::UnsolveableError};
 
 // The parameters that define the SVI smile curve function
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -84,6 +84,12 @@ impl SVICurveParameters {
         // Assert non-negative variance.
         if params.a + (params.b * params.o * (1.0 - params.p.powf(2.0)).sqrt()) < 0.0 {
             return Err(UnsolveableError::new("Variance must be greater than 0"));
+        }
+
+        // Always check for the above even if this is disabled, because values outside those bounds will cause
+        // headaches later on.
+        if !constants::VALIDATE_SVI {
+            return Ok(());
         }
 
         // Assert Lee's moment formula consistent.
