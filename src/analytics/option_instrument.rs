@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::{cell::Cell, f64::consts::E};
 
 use chrono::{DateTime, Utc};
 
@@ -19,49 +19,42 @@ pub struct OptionInstrument {
     pub ask_price: f64,
     implied_volatility: Cell<Option<f64>>,
     total_implied_variance: Cell<Option<f64>>,
-    /// The forward spot price according to the API we originally got this data from.
-    pub external_forward_price: f64,
-
-    #[serde(skip)]
-    years_until_expiry: f64,
-    #[serde(skip)]
-    expiration: DateTime<Utc>,
+    pub expiry_seconds: u64,
+    //#[serde(skip)]
+    //years_until_expiry: f64,
 }
 
 impl OptionInstrument {
     pub fn new(
         price: f64,
-        expiration: DateTime<Utc>,
+        expiry_seconds: u64,
         strike: f64,
         instrument_id: Box<str>,
         option_type: OptionType,
         spot_price: f64,
-        external_forward_price: f64,
         bid_price: f64,
         ask_price: f64,
     ) -> Self {
         Self {
             price: price,
-            expiration: expiration,
+            expiry_seconds: expiry_seconds,
             strike: strike,
             instrument_id: instrument_id,
             option_type: option_type,
             spot_price: spot_price,
-            external_forward_price: external_forward_price,
             implied_volatility: Cell::new(None),
             total_implied_variance: Cell::new(None),
-            years_until_expiry: (expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0,
             bid_price: bid_price,
             ask_price: ask_price,
         }
     }
 
     pub fn get_expiration(&self) -> DateTime<Utc> {
-        self.expiration
+        DateTime::from_timestamp_secs(self.expiry_seconds as i64).unwrap()
     }
 
     pub fn get_years_until_expiry(&self) -> f64 {
-        self.years_until_expiry
+        (self.get_expiration() - Utc::now()).num_seconds() as f64 / 31556926.0
     }
 
     pub fn get_implied_volatility(&self) -> Result<f64, UnsolveableError> {

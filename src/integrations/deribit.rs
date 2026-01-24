@@ -1,4 +1,3 @@
-use chrono::DateTime;
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
 
@@ -100,12 +99,11 @@ impl DeribitOptionInstrument {
 
         Ok(OptionInstrument::new(
             price,
-            DateTime::from_timestamp_millis(self.expiration_timestamp.try_into().unwrap()).unwrap(),
+            self.expiration_timestamp / 1000,
             self.strike.to_f64().unwrap(),
             self.instrument_id.to_string().into_boxed_str(),
             OptionType::from_string(&self.option_type),
             index_price,
-            ticker_data.underlying_price.unwrap().to_f64().unwrap(),
             ticker_data.best_bid_price.to_f64().unwrap() * index_price,
             ticker_data.best_ask_price.to_f64().unwrap() * index_price,
         ))

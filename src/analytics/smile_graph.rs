@@ -5,7 +5,7 @@ use std::{
     io::{self, Write},
 };
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U5, Vector5};
 
@@ -28,10 +28,6 @@ pub struct SmileGraph {
 
     #[serde(skip)]
     pub has_been_fit: bool,
-    #[serde(skip)]
-    seconds_until_expiry: i64,
-    #[serde(skip)]
-    years_until_expiry: f64,
 }
 
 impl SmileGraph {
@@ -40,12 +36,10 @@ impl SmileGraph {
             options: Vec::new(),
             svi_curve_parameters: SVICurveParameters::new_empty(),
             has_been_fit: false,
-            seconds_until_expiry: 0,
             forward_price: Cell::new(None),
             highest_observed_implied_volatility: f64::MIN,
             lowest_observed_strike: f64::MAX,
             highest_observed_strike: f64::MIN,
-            years_until_expiry: 0.0,
         }
     }
 
@@ -57,18 +51,11 @@ impl SmileGraph {
     }
 
     pub fn get_years_until_expiry(&self) -> f64 {
-        self.years_until_expiry
+        self.options[0].get_years_until_expiry()
     }
 
     pub fn get_seconds_until_expiry(&self) -> i64 {
-        self.seconds_until_expiry
-    }
-
-    pub fn set_expiry(&mut self, secs_until_expiry: i64) {
-        // todo this is just repeated version of the one in options type. refactor?
-        let expiration = DateTime::from_timestamp_secs(secs_until_expiry).expect("Expiry must be valid");
-        self.years_until_expiry = (expiration - Utc::now()).num_milliseconds() as f64 / 31536000000.0;
-        self.seconds_until_expiry = secs_until_expiry;
+        (self.options[0].get_expiration() - Utc::now()).num_seconds()
     }
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), UnsolveableError> {
@@ -93,9 +80,7 @@ impl SmileGraph {
     pub fn try_insert_option(&mut self, option: OptionInstrument) -> Result<(), UnsolveableError> {
         Self::check_option_valid(&option)?;
 
-        if self.options.len() == 0 {
-            self.set_expiry(option.get_expiration().timestamp());
-        } else if self.options[0].get_expiration() != option.get_expiration() {
+        if self.options.len() > 0 && self.options[0].get_expiration() != option.get_expiration() {
             panic!("Cannot mix options with different expiries");
         }
 
