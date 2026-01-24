@@ -97,11 +97,15 @@ impl OptionInstrument {
         Ok(self.total_implied_variance.get().unwrap())
     }
 
+    pub fn get_underlying_forward_price(&self) -> f64 {
+        self.spot_price * E.powf(constants::INTEREST_FREE_RATE * self.get_years_until_expiry())
+    }
+
     /// Use forward_price_override if for example you need to do the equation using a specific forward price.
     pub fn get_log_moneyness(&self, forward_price_override: Option<f64>) -> f64 {
         let forward_price = match forward_price_override.is_some() {
             true => forward_price_override.unwrap(),
-            false => self.external_forward_price,
+            false => self.get_underlying_forward_price(),
         };
 
         (self.strike / forward_price).ln()
