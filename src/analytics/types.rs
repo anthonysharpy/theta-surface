@@ -16,11 +16,11 @@ impl SVICurveParameters {
     /// Create a new and empty instance (everything set to near 0).
     pub fn new_empty() -> SVICurveParameters {
         let params: SVICurveParameters = SVICurveParameters {
-            a: 0.0,
-            b: 0.0,
-            p: 0.0,
-            m: 0.0,
-            o: 0.1, // 0.0 would be invalid.
+            a: 0.0001,
+            b: 0.0001,
+            p: 0.0001,
+            m: 0.0001,
+            o: 0.0001,
         };
 
         Self::check_valid(&params).unwrap_or_else(|e| panic!("{}", e.reason));
@@ -68,21 +68,21 @@ impl SVICurveParameters {
 
     /// Assert that the maths is correct.
     pub fn check_valid(params: &SVICurveParameters) -> Result<(), UnsolveableError> {
-        if params.b < 0.0 {
+        if params.b < 0.0001 {
             return Err(UnsolveableError::new(format!("b cannot be less than zero ({})", params.b)));
         }
-        if params.p <= -1.0 {
+        if params.p < -0.9999 {
             return Err(UnsolveableError::new("p must be greater than -1"));
         }
-        if params.p >= 1.0 {
+        if params.p > 0.9999 {
             return Err(UnsolveableError::new("p must be smaller than 1"));
         }
-        if params.o <= 0.0 {
+        if params.o < 0.0001 {
             return Err(UnsolveableError::new("o must be greater than 0"));
         }
 
         // Assert non-negative variance.
-        if params.a + (params.b * params.o * (1.0 - params.p.powf(2.0)).sqrt()) < 0.0 {
+        if params.a + (params.b * params.o * (1.0 - params.p.powf(2.0)).sqrt()) < 0.0001 {
             return Err(UnsolveableError::new("Variance must be greater than 0"));
         }
 
@@ -93,16 +93,16 @@ impl SVICurveParameters {
         }
 
         // Assert Lee's moment formula consistent.
-        if params.b * (1.0 + params.p) < 0.0 {
+        if params.b * (1.0 + params.p) < 0.0001 {
             return Err(UnsolveableError::new("Asymptotic slope of total variance must be greater than 0"));
         }
-        if params.b * (1.0 + params.p) >= 2.0 {
+        if params.b * (1.0 + params.p) > 1.9999 {
             return Err(UnsolveableError::new("Asymptotic slope of total variance must be less than 2"));
         }
-        if params.b * (1.0 - params.p) < 0.0 {
+        if params.b * (1.0 - params.p) < 0.0001 {
             return Err(UnsolveableError::new("Asymptotic slope of total variance must be greater than 0"));
         }
-        if params.b * (1.0 - params.p) >= 2.0 {
+        if params.b * (1.0 - params.p) > 1.9999 {
             return Err(UnsolveableError::new("Asymptotic slope of total variance must be less than 2"));
         }
 
