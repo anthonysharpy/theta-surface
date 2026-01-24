@@ -20,17 +20,18 @@ use crate::{
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct SmileGraph {
     pub options: Vec<OptionInstrument>,
-    #[serde(skip)]
-    pub has_been_fit: bool,
-
-    seconds_until_expiry: i64,
-    years_until_expiry: f64,
     forward_price: Cell<Option<f64>>,
     pub highest_observed_strike: f64,
     pub lowest_observed_strike: f64,
     pub highest_observed_implied_volatility: f64,
-
     pub svi_curve_parameters: SVICurveParameters,
+
+    #[serde(skip)]
+    pub has_been_fit: bool,
+    #[serde(skip)]
+    seconds_until_expiry: i64,
+    #[serde(skip)]
+    years_until_expiry: f64,
 }
 
 impl SmileGraph {

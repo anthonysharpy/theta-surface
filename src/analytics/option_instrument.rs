@@ -10,8 +10,6 @@ use crate::{
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct OptionInstrument {
-    #[serde(skip)]
-    expiration: DateTime<Utc>,
     pub strike: f64,
     pub price: f64,
     pub instrument_id: Box<str>,
@@ -23,7 +21,11 @@ pub struct OptionInstrument {
     total_implied_variance: Cell<Option<f64>>,
     /// The forward spot price according to the API we originally got this data from.
     pub external_forward_price: f64,
+
+    #[serde(skip)]
     years_until_expiry: f64,
+    #[serde(skip)]
+    expiration: DateTime<Utc>,
 }
 
 impl OptionInstrument {
