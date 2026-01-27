@@ -179,19 +179,19 @@ impl SmileGraph {
         let p_step = 0.1;
         let p_start = -0.99;
         let p_end = 0.99;
-        let p_iterations = (198.0 / 0.01) as u64;
+        let p_iterations = ((p_end - p_start) / p_step) as u64;
         let mut p_patience_scale = 1.0;
 
         let m_step = 0.1;
         let m_start = lowest_log_moneyness - 0.25;
         let m_end = highest_log_moneyness + 0.25;
-        let m_iterations = (m_end - m_start) as u64;
+        let m_iterations = ((m_end - m_start) / m_step) as u64;
         let mut m_patience_scale = 1.0;
 
         let o_step = 0.05;
         let o_start = log_moneyness_range * 0.05;
         let o_end = log_moneyness_range * 2.0;
-        let o_iterations = (o_end - o_start) as u64;
+        let o_iterations = ((o_end - o_start) / o_step) as u64;
         let mut o_patience_scale = 1.0;
 
         // Otherwise, for example if the minimum required improvement was 1%, and we kept getting 0.9% improvements,
