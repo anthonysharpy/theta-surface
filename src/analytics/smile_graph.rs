@@ -166,11 +166,12 @@ impl SmileGraph {
         // From testing it seems that the initial guesses when optimising the SVI function make a huge difference
         // in the overall error. So we need to try lots of different options.
         // We're going to brute force it, but at the same time we'll focus on the range of mathematically sensible values.
+        // Some of these values have been hand-tuned.
 
         // Search in the range 0.000001 -> 4s.
-        let b_step = 0.02;
+        let b_step = 0.01;
         let b_start = 0.00001;
-        let b_end = s * 4.0;
+        let b_end = s * 5.0;
         let b_iterations = ((b_end - 0.000001) / b_step) as u64;
         let mut b = b_start;
         let mut b_patience_scale = 1.0;
@@ -184,7 +185,7 @@ impl SmileGraph {
 
         let m_step = 0.1;
         let m_start = lowest_log_moneyness;
-        let m_end = highest_log_moneyness;
+        let m_end = highest_log_moneyness * 1.1;
         let m_iterations = ((m_end - m_start) / m_step) as u64;
         let mut m_patience_scale = 1.0;
 
@@ -401,9 +402,9 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             let butterfly_arbitrage_found = has_butterfly_arbitrage(
                 self.curve.as_ref().unwrap(),
                 1,
-                self.smile_graph.highest_observed_strike as u64 * 2,
+                (self.smile_graph.highest_observed_strike * 1.5).ceil() as u64,
                 self.smile_graph.get_underlying_forward_price(),
-                100,
+                150,
             );
 
             if butterfly_arbitrage_found.is_err() {
