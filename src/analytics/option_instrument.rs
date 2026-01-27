@@ -90,7 +90,6 @@ impl OptionInstrument {
             return Ok(self.total_implied_variance.get().unwrap());
         }
 
-        // unsafe unwrap
         self.total_implied_variance
             .set(Some(self.get_implied_volatility()?.powf(2.0) * self.get_years_until_expiry()));
 
