@@ -7,3 +7,8 @@ unused code
 can we speed up data download?
 lots of errors when building surface
 fuzzing tests to test for bullshit crashes etc
+
+add ATM line to graphs
+removed unused bid/ask prices?
+make sure legend explanations in readme are correct. possibly update readme image
+time until values are calculated inconsistently
