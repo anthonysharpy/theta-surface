@@ -1,6 +1,5 @@
 /target
 data/graphs/*.png
-data/smile-graph-data.json
 .gitignore
 perf.data*
 smile-graph-data*
