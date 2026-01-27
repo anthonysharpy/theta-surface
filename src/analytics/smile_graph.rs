@@ -152,11 +152,11 @@ impl SmileGraph {
             .iter()
             .min_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
-        let highest_log_moneyness = option_log_moneynesses
+        let highest_log_moneyness = *option_log_moneynesses
             .iter()
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
-        let lowest_log_moneyness = option_log_moneynesses
+        let lowest_log_moneyness = *option_log_moneynesses
             .iter()
             .min_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
@@ -183,8 +183,8 @@ impl SmileGraph {
         let mut p_patience_scale = 1.0;
 
         let m_step = 0.1;
-        let m_start = lowest_log_moneyness - 0.25;
-        let m_end = highest_log_moneyness + 0.25;
+        let m_start = lowest_log_moneyness;
+        let m_end = highest_log_moneyness;
         let m_iterations = ((m_end - m_start) / m_step) as u64;
         let mut m_patience_scale = 1.0;
 
@@ -203,7 +203,7 @@ impl SmileGraph {
         println!("p={p_start} => {p_end}");
         println!("m={m_start} => {m_end}");
         println!("o={o_start} => {o_end}");
-        println!("Iterations: {}", (o_iterations * m_iterations * p_iterations * b_iterations));
+        println!("Max iterations: {}", (o_iterations * m_iterations * p_iterations * b_iterations));
         println!("=====================================");
 
         while b <= b_end {
