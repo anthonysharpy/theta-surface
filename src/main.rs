@@ -1,6 +1,7 @@
 mod analytics;
 mod constants;
 mod fileio;
+mod helpers;
 mod integrations;
 mod network;
 mod routines;

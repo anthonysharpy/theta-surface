@@ -139,6 +139,7 @@ fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) {
         let current_smile = succeeded_smiles + failed_smiles + 1;
         println!("");
         println!("Fitting smile {current_smile} ({})...", graph.options[0].get_expiration().to_rfc3339());
+        println!("=====================================");
 
         match graph.fit_smile() {
             Err(e) => {
