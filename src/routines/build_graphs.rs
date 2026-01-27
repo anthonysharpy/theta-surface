@@ -63,7 +63,7 @@ fn build_graph_points(smile_graph: &SmileGraph) -> (Vec<OptionGraphPoint>, f64) 
 
         assert!(
             implied_volatility < 20.0,
-            "implied_volatility was massive ({implied_volatility}), something has gone very wrong"
+            "implied_volatility was massive ({implied_volatility}), something has gone very wrong (log_moneyness={log_moneyness}, expiry={expiry})"
         );
         assert!(
             self_implied_volatility < 20.0,
