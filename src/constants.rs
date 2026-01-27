@@ -24,7 +24,7 @@ pub const ONLY_PROCESS_SMILE_DATE: Option<u64> = None;
 
 /// To speed up fitting, we increase the search step size if we can't find any new good fits. The higher this is, the more
 /// aggressively we increase the step size.
-pub const SVI_FITTING_IMPATIENCE: f64 = 1.1;
+pub const SVI_FITTING_IMPATIENCE: f64 = 1.4;
 
 /// When we find a new best error, we reset the impatience. But only if the new error was at least this percent better
 /// than the old one. Written as a decimal (0 - 1).
