@@ -1,4 +1,4 @@
-# ThetaSurface
+# Theta Surface
 
 Rust tool for fetching Bitcoin market option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
 
