@@ -17,11 +17,12 @@ pub struct OptionInstrument {
     pub spot_price: f64,
     pub bid_price: f64,
     pub ask_price: f64,
-    implied_volatility: Cell<Option<f64>>,
-    total_implied_variance: Cell<Option<f64>>,
     pub expiry_seconds: u64,
-    //#[serde(skip)]
-    //years_until_expiry: f64,
+
+    #[serde(skip)]
+    implied_volatility: Cell<Option<f64>>,
+    #[serde(skip)]
+    total_implied_variance: Cell<Option<f64>>,
 }
 
 impl OptionInstrument {
