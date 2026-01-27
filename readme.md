@@ -33,7 +33,7 @@ cargo build
 ./target/debug/ThetaSurface fetch-market-data
 ```
 
-4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`.
+4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`. Fitting takes 1-2 minutes on a middle-of-the-range laptop.
 
 ```
 ./target/debug/ThetaSurface build-surface
@@ -50,6 +50,7 @@ cargo build
 _**fetch-market-data**_
 
 - Bitcoin option data is downloaded from Deribit's public cryptocurrency API. An option is a contract granting the right to buy or sell an asset (in this case Bitcoin) at a pre-determined price (**strike price**) on a pre-determined date (**expiry**).
+- For consistency, we normalise all downloaded data to have the same spot price.
 - This data is saved to file.
 
 _**build-surface**_
@@ -58,8 +59,9 @@ _**build-surface**_
 - This data is converted into a simpler internal format. Any invalid options are discarded (e.g. options that have already expired).
 - These options are then grouped by expiry. Typically, there will be a wide range of options with different strike prices for the same expiry.
 - A smile graph is constructed for each group. The smile graph shows how the (implied) volatility of the option changes as the strike price changes, which typically looks like a smile.
-- When using the smile graph, we must determine a single forward price for the underlying (Bitcoin) per smile. We do this by taking the put/call pair that has the least uncertain forward-adjusted bid/ask spread and then calculating the forward price from that, using the same forward-price calculation as we use for solving implied volatility.
-- Creating the smile graph ("fitting") involves using a guessing-based algorithm to find the most accurate curve that fits the data. In this case the Levenberg-Marquardt algorithm is used. The curve we fit is based on the SVI formula, which is designed to usually produce curves that are valid according to conventional enonomic theory. Checks for valid bounds and butterfly arbitrage etc. are also carried out in order to ensure a valid fit. In order to arrive at the best-fit, we brute force starting guesses.
+- When using the smile graph, we must determine a single forward price for the underlying (Bitcoin) per smile. Since we already normalised spot prices, they are all the same, so we just pick the first one. For consistency, we plug this into the same forward-price formula that we use for solving implied volatility.
+- Creating the smile graph ("fitting") involves using a guessing-based algorithm to find the most accurate curve that fits the data. In this case the Levenberg-Marquardt algorithm is used. The curve we fit is based on the SVI formula, which is designed to usually produce curves that are valid according to conventional enonomic theory (but not always, so we also manually check for arbitrage).
+- Checks for valid bounds and butterfly arbitrage etc. are carried out during fitting in order to ensure an (economically) mathematically valid fit. In order to arrive at the best fit, we brute force starting guesses within reasonable ranges derived from the data. We also use a patience-based method, where the algorithm makes faster leaps when it enters areas of no improvement.
 - Under the hood, the use of the SVI formula actually produces a graph showing how total implied variance changes as log moneyness changes. This is not actually what we're interested in, but it's required to make the math work. We'll convert this back later.
 - The curves for each group are saved to file, as well as some other information about the smile and the options belonging to it that will help us when building the graphs later.
 
@@ -69,9 +71,5 @@ _**build-graphs**_
 - Any existing graphs are deleted.
 - A graph is constructed for each smile. The first and last quarter of each graph is extrapolated data. The middle half of each graph is in the range of the data that we actually observed from the API, and so is likely the most accurate.
 - In creating the graphs some math is performed to convert the smiles from a graph showing the change in total implied variance changes against log moneyness into a graph that shows how implied volatility changes as the strike price changes.
-- Once constructed these graphs are saved to file.
-- These graphs are then useful for things such as efficiently pricing options at any given strike price, accurately analysing the market when other data is noisy, validating that other market data is accurate and tracking changes in risk and uncertainty over time. 
-
-# AI disclaimer
-
-ChatGPT was used in this project for research and looking-up information. None of the code or text in this project is AI-generated.
+- Once constructed, these graphs are saved to file.
+- These graphs are then useful for things such as efficiently pricing options at any given strike price, accurately analysing the market when other data is noisy, validating that other market data is accurate and tracking changes in risk and uncertainty over time.
