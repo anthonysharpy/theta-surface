@@ -10,8 +10,8 @@ The purpose of this is to demonstrate the implementation of complex market-based
 
 - **Extrapolated data**: The extrapolated part of the smile curve.
 - **Observed data**: The smile curve representing the range of data that we actually observed.
-- **Smile-relative implied volatility**: The implied volatility of an option calculated using the single forward price chosen for the whole graph.
-- **Self-relative implied volatility**: The implied volatility of an option calculated using the option's own forward price. Multiple of these on the same strike usually implies a put/call pair. If these show a trend that differs greatly from the main curve, it implies that the curve was badly fit.
+- **Smile-relative implied volatility**: The implied volatility of an option acccording to the fitted smile curve.
+- **Self-relative implied volatility**: The actual implied volatility of an option according to its own data. Basically, this is what the curve is trying to fit. Multiple of these on the same strike usually implies a put/call pair. If these show a trend that differs greatly from the curve, it implies that the curve was badly fit.
 
 ## Usage
 
@@ -73,3 +73,8 @@ _**build-graphs**_
 - In creating the graphs some math is performed to convert the smiles from a graph showing the change in total implied variance changes against log moneyness into a graph that shows how implied volatility changes as the strike price changes.
 - Once constructed, these graphs are saved to file.
 - These graphs are then useful for things such as efficiently pricing options at any given strike price, accurately analysing the market when other data is noisy, validating that other market data is accurate and tracking changes in risk and uncertainty over time.
+
+## Known limitations
+
+- Fitting can be slow. I think there are still optimisations to be made here. An obvious one would be making it multi-threaded.
+- Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
