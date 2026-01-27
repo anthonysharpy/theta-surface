@@ -1,7 +1,7 @@
 use core::f64;
 use std::{cell::Cell, f64::consts::E};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U4, Vector4};
 
@@ -53,6 +53,10 @@ impl SmileGraph {
 
     pub fn get_seconds_until_expiry(&self) -> i64 {
         (self.options[0].get_expiration() - Utc::now()).num_seconds()
+    }
+
+    pub fn get_expiry(&self) -> DateTime<Utc> {
+        self.options[0].get_expiration()
     }
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), UnsolveableError> {
@@ -129,7 +133,7 @@ impl SmileGraph {
 
     /// Using the provided options, calculate the smile shape that best represents the data with the least error.
     /// Returns the error on success.
-    pub fn fit_smile(&mut self) -> Result<f64, UnsolveableError> {
+    pub fn fit_smile(&mut self) -> Result<(), UnsolveableError> {
         let mut best_error = f64::MAX;
         let mut best_params: Option<SVICurveParameters> = None;
 
@@ -279,7 +283,7 @@ impl SmileGraph {
         }
 
         if best_params.is_none() {
-            panic!("No graph could be fit! This is a bug!");
+            return Err(UnsolveableError::new("No graph could be fit! This is probably a bug!"));
         }
 
         self.svi_curve_parameters = best_params.unwrap();
@@ -295,7 +299,7 @@ impl SmileGraph {
             self.svi_curve_parameters.get_o()
         );
 
-        Ok(best_error)
+        Ok(())
     }
 
     /// Checks if this smile graph is valid and generally safe for use. If not, a reason is returned as a string.

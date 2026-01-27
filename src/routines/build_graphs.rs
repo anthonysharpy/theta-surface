@@ -36,7 +36,7 @@ pub fn build_graphs() {
         let (option_points, highest_implied_volatility_2) = build_graph_points(&graph);
 
         create_graph(
-            DateTime::from_timestamp_secs(graph.get_seconds_until_expiry()).unwrap(),
+            graph.get_expiry(),
             highest_implied_volatility_1.max(highest_implied_volatility_2),
             first_quarter_points,
             middle_points,
