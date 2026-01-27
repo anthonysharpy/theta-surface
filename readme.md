@@ -1,6 +1,6 @@
 # Theta Surface
 
-Rust tool for fetching Bitcoin market option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
+Rust tool for fetching Bitcoin option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
 
 The purpose of this is to demonstrate the implementation of complex market-based mathematics and algorithms in a clear and structured way. It is not necessarily meant to be the fastest or most efficient implementation. For an example of fast low-latency programming, see https://github.com/anthonysharpy/nanofill.
 
@@ -27,7 +27,7 @@ cd theta-surface
 cargo build
 ```
 
-3. Download the latest market data. This is semi-optional as the software is packaged with data by default. However, since expired options are discarded, if you don't download fresh data then none of the included data might be useable. It may also affect the quality of the output. The data takes 5-10 minutes to download and is saved in `/data`.
+3. Download the latest market data. This is semi-optional as the software is packaged with data by default. However, since expired options are discarded, if you don't download fresh data then none of the included data might be useable. It might also affect the quality of the output. The data takes 5-10 minutes to download and is saved in `/data`.
 
 ```
 ./target/debug/ThetaSurface fetch-market-data
@@ -78,4 +78,4 @@ _**build-graphs**_
 
 - Fitting can be slow. I think there are still optimisations to be made here. An obvious one would be making it multi-threaded.
 - Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
-- More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Sorry. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.
+- More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.
