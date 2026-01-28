@@ -1,10 +1,10 @@
 # Theta Surface
 
-Rust tool for fetching Bitcoin option data, fitting a volatility surface and generating graphs showing the implied volatility against strike price.
+Rust tool for fetching Bitcoin option data, fitting the volatility surface and generating graphs showing implied volatility against strike price.
 
 The purpose of this is to demonstrate the implementation of complex market-based mathematics and algorithms in a clear and structured way. It is not necessarily meant to be the fastest or most efficient implementation. For an example of fast low-latency programming, see https://github.com/anthonysharpy/nanofill.
 
-# Graph explanation
+## Graph explanation
 
 ![Graph](./images/example-smile-graph.png)
 
@@ -58,8 +58,8 @@ _**build-surface**_
 - The download Deribit data is loaded from file.
 - This data is converted into a simpler internal format. Any invalid options are discarded (e.g. options that have already expired).
 - These options are then grouped by expiry. Typically, there will be a wide range of options with different strike prices for the same expiry.
-- A smile graph is constructed for each group. The smile graph shows how the (implied) volatility of the option changes as the strike price changes, which typically looks like a smile.
-- When using the smile graph, we must determine a single forward price for the underlying (Bitcoin) per smile. Since we already normalised spot prices, they are all the same, so we just pick the first one. For consistency, we plug this into the same forward-price formula that we use for solving implied volatility.
+- A smile graph is constructed for each group. The smile graph will show how the (implied) volatility of the option changes as the strike price changes, which typically looks like a smile.
+- When creating and using the smile graph, we must determine a single forward price for the underlying (Bitcoin) per smile. Since we already normalised spot prices, they are all the same, so we just pick the first one. For consistency, we plug this into the same forward-price formula that we use for solving implied volatility.
 - Creating the smile graph ("fitting") involves using a guessing-based algorithm to find the most accurate curve that fits the data. In this case the Levenberg-Marquardt algorithm is used. The curve we fit is based on the SVI formula, which is designed to usually produce curves that are valid according to conventional enonomic theory (but not always, so we also manually check for arbitrage).
 - Checks for valid bounds and butterfly arbitrage etc. are carried out during fitting in order to ensure an (economically) mathematically valid fit. In order to arrive at the best fit, we brute force starting guesses within reasonable ranges derived from the data. We also use a patience-based method, where the algorithm makes faster leaps when it enters areas of no improvement.
 - Under the hood, the use of the SVI formula actually produces a graph showing how total implied variance changes as log moneyness changes. This is not actually what we're interested in, but it's required to make the math work. We'll convert this back later.
