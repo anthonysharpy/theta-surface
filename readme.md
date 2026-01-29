@@ -33,7 +33,7 @@ cargo build
 ./target/debug/ThetaSurface fetch-market-data
 ```
 
-4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`. Fitting takes 1-2 minutes on a middle-of-the-range laptop.
+4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`. Fitting takes 1-2 minutes on a lower-mid-range laptop.
 
 ```
 ./target/debug/ThetaSurface build-surface
@@ -79,3 +79,4 @@ _**build-graphs**_
 - Fitting can be slow. I think there are still optimisations to be made here. An obvious one would be making it multi-threaded.
 - Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
 - More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.
+- Date logic. The use of dates in the software is a bit inconsistent. For example, we are constantly fetching the current UTC time, which is bad because it means that results can change depending on how long the program takes to run. In reality this makes virtually no difference to the final result, but it is not correct from a strict consistency standpoint.
