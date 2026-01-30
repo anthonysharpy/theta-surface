@@ -6,7 +6,7 @@ use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U4, Vector4};
 
 use crate::{
-    analytics::{OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
+    analytics::{self, OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
     constants,
     helpers::F64Helpers,
     types::UnsolveableError,
@@ -45,6 +45,13 @@ impl SmileGraph {
     /// is the interest free rate.
     pub fn get_underlying_forward_price(&self) -> f64 {
         self.options[0].spot_price * E.powf(constants::INTEREST_FREE_RATE * self.options[0].get_years_until_expiry())
+    }
+
+    pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, UnsolveableError> {
+        let log_moneyness = (strike / self.get_underlying_forward_price()).ln();
+        let implied_variance = analytics::svi_variance(&self.svi_curve_parameters, log_moneyness)?;
+
+        Ok((implied_variance / self.get_years_until_expiry()).sqrt())
     }
 
     pub fn get_years_until_expiry(&self) -> f64 {

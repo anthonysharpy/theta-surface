@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use plotters::element::DashedPathElement;
 use plotters::style::full_palette::GREY;
 
-use crate::analytics::{self, SmileGraph, SmileGraphsDataContainer};
+use crate::analytics::{SmileGraph, SmileGraphsDataContainer};
 use crate::fileio;
 use crate::types::UnsolveableError;
 use plotters::prelude::*;
@@ -44,6 +44,15 @@ pub fn build_graphs() {
             }
         };
 
+        let forward_price = graph.get_underlying_forward_price();
+        let implied_volatility_at_forward_price = match graph.get_implied_volatility_at_strike(forward_price) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("Failed building graph: {}, skipping...", e.reason);
+                continue;
+            }
+        };
+
         create_graph(
             graph.get_expiry(),
             highest_implied_volatility_1.max(highest_implied_volatility_2),
@@ -51,24 +60,12 @@ pub fn build_graphs() {
             middle_points,
             last_quarter_points,
             option_points,
-            build_forward_price_point(&graph),
+            (forward_price, implied_volatility_at_forward_price),
         );
     }
 
     println!("Done!");
     println!("===============================================================");
-}
-
-fn build_forward_price_point(smile_graph: &SmileGraph) -> (f64, f64) {
-    let forward_price = smile_graph.get_underlying_forward_price();
-
-    // forward_price / forward_price = 1
-    let log_moneyness = 1.0_f64.ln();
-    let expiry = smile_graph.get_years_until_expiry();
-    let implied_variance = analytics::svi_variance(&smile_graph.svi_curve_parameters, log_moneyness).unwrap();
-    let implied_volatility = (implied_variance / expiry).sqrt();
-
-    (forward_price, implied_volatility)
 }
 
 /// Get the points on the graphs. Also returns the highest found implied volatility as the last parameter.
@@ -77,20 +74,8 @@ fn build_graph_points(smile_graph: &SmileGraph) -> Result<(Vec<OptionGraphPoint>
     let mut highest_implied_volatility = f64::MIN;
 
     for option in &smile_graph.options {
-        let log_moneyness = (option.strike / smile_graph.get_underlying_forward_price()).ln();
-        let expiry = smile_graph.get_years_until_expiry();
-        let implied_variance = analytics::svi_variance(&smile_graph.svi_curve_parameters, log_moneyness)?;
-        let implied_volatility = (implied_variance / expiry).sqrt();
+        let implied_volatility = smile_graph.get_implied_volatility_at_strike(option.strike)?;
         let self_implied_volatility = option.get_implied_volatility()?;
-
-        assert!(
-            implied_volatility < 20.0,
-            "implied_volatility was massive ({implied_volatility}), something has gone very wrong (log_moneyness={log_moneyness}, expiry={expiry})"
-        );
-        assert!(
-            self_implied_volatility < 20.0,
-            "self_implied_volatility was massive ({self_implied_volatility}), something has gone very wrong"
-        );
 
         if implied_volatility > highest_implied_volatility {
             highest_implied_volatility = implied_volatility;
@@ -137,18 +122,16 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
             continue;
         }
 
-        let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
-        let expiry = graph.get_years_until_expiry();
-        let implied_variance = analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap();
+        let implied_volatility = match graph.get_implied_volatility_at_strike(x) {
+            Ok(v) => v,
+            Err(e) => panic!("Calculating implied volatility in first quarter of graph failed: {}", e.reason),
+        };
 
-        // y is the implied volatility.
-        let y = (implied_variance / expiry).sqrt();
-
-        if y > highest_implied_volatility {
-            highest_implied_volatility = y;
+        if implied_volatility > highest_implied_volatility {
+            highest_implied_volatility = implied_volatility;
         }
 
-        first_quarter_points.push((x, y));
+        first_quarter_points.push((x, implied_volatility));
     }
 
     // Now we'll create the middle half of the line graph. The middle will lie within our observed data range.
@@ -164,18 +147,16 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
             continue;
         }
 
-        let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
-        let expiry = graph.get_years_until_expiry();
-        let implied_variance = analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap();
+        let implied_volatility = match graph.get_implied_volatility_at_strike(x) {
+            Ok(v) => v,
+            Err(e) => panic!("Calculating implied volatility in middle of graph failed: {}", e.reason),
+        };
 
-        // y is the implied volatility.
-        let y = (implied_variance / expiry).sqrt();
-
-        if y > highest_implied_volatility {
-            highest_implied_volatility = y;
+        if implied_volatility > highest_implied_volatility {
+            highest_implied_volatility = implied_volatility;
         }
 
-        middle_points.push((x, y));
+        middle_points.push((x, implied_volatility));
     }
 
     // Build the last quarter, also extrapolated.
@@ -191,18 +172,16 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
             continue;
         }
 
-        let log_moneyness = (x / graph.get_underlying_forward_price()).ln();
-        let expiry = graph.get_years_until_expiry();
-        let implied_variance = analytics::svi_variance(&graph.svi_curve_parameters, log_moneyness).unwrap();
+        let implied_volatility = match graph.get_implied_volatility_at_strike(x) {
+            Ok(v) => v,
+            Err(e) => panic!("Calculating implied volatility in last quarter of graph failed: {}", e.reason),
+        };
 
-        // y is the implied volatility.
-        let y = (implied_variance / expiry).sqrt();
-
-        if y > highest_implied_volatility {
-            highest_implied_volatility = y;
+        if implied_volatility > highest_implied_volatility {
+            highest_implied_volatility = implied_volatility;
         }
 
-        last_quarter_points.push((x, y));
+        last_quarter_points.push((x, implied_volatility));
     }
 
     (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility)
