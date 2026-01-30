@@ -36,7 +36,7 @@ pub fn calculate_bs_implied_volatility(
         OptionType::Call => {
             if option_price < asset_spot_price - strike_value_now {
                 return Err(UnsolveableError::new(format!(
-                    "Call option price too low ({option_price} < {asset_spot_price} - {strike_value_now})"
+                    "Call option price mathematically impossibly low ({option_price} < {asset_spot_price} - {strike_value_now}) (Is the data stale?)"
                 )));
             }
             if option_price > asset_spot_price {
@@ -46,7 +46,7 @@ pub fn calculate_bs_implied_volatility(
         OptionType::Put => {
             if option_price < strike_value_now - asset_spot_price {
                 return Err(UnsolveableError::new(format!(
-                    "Put option price too low ({option_price} < {strike_value_now} - {asset_spot_price})"
+                    "Put option price mathematically impossibly low ({option_price} < {strike_value_now} - {asset_spot_price}) (Is the data stale?)"
                 )));
             }
             if option_price > strike_value_now {
