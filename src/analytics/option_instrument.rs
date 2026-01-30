@@ -15,8 +15,6 @@ pub struct OptionInstrument {
     pub instrument_id: Box<str>,
     pub option_type: OptionType,
     pub spot_price: f64,
-    pub bid_price: f64,
-    pub ask_price: f64,
     pub expiry_seconds: u64,
 
     #[serde(skip)]
@@ -33,8 +31,6 @@ impl OptionInstrument {
         instrument_id: Box<str>,
         option_type: OptionType,
         spot_price: f64,
-        bid_price: f64,
-        ask_price: f64,
     ) -> Self {
         Self {
             price: price,
@@ -45,8 +41,6 @@ impl OptionInstrument {
             spot_price: spot_price,
             implied_volatility: Cell::new(None),
             total_implied_variance: Cell::new(None),
-            bid_price: bid_price,
-            ask_price: ask_price,
         }
     }
 

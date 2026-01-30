@@ -104,8 +104,6 @@ impl DeribitOptionInstrument {
             self.instrument_id.to_string().into_boxed_str(),
             OptionType::from_string(&self.option_type),
             index_price,
-            ticker_data.best_bid_price.to_f64().unwrap() * index_price,
-            ticker_data.best_ask_price.to_f64().unwrap() * index_price,
         ))
     }
 }
