@@ -197,22 +197,19 @@ fn load_api_data() -> SmileGraphsDataContainer {
     println!("Loading external API data...");
     let data = fileio::load_struct_from_file::<SmileGraphsDataContainer>("./data/smile-graph-data.json");
 
-    let first_expiry = DateTime::from_timestamp_secs(
-        data.smile_graphs
-            .iter()
-            .min_by_key(|x| x.get_seconds_until_expiry())
-            .unwrap()
-            .get_seconds_until_expiry(),
-    )
-    .unwrap();
-    let last_expiry = DateTime::from_timestamp_secs(
-        data.smile_graphs
-            .iter()
-            .max_by_key(|x| x.get_seconds_until_expiry())
-            .unwrap()
-            .get_seconds_until_expiry(),
-    )
-    .unwrap();
+    let first_expiry = data
+        .smile_graphs
+        .iter()
+        .min_by_key(|x| x.get_expiry().timestamp())
+        .unwrap()
+        .get_expiry();
+    let last_expiry = data
+        .smile_graphs
+        .iter()
+        .max_by_key(|x| x.get_expiry().timestamp())
+        .unwrap()
+        .get_expiry();
+
     let smile_graphs_count = data.smile_graphs.len();
 
     println!("Found {smile_graphs_count} smile graphs...");

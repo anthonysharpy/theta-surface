@@ -58,10 +58,6 @@ impl SmileGraph {
         self.options[0].get_years_until_expiry()
     }
 
-    pub fn get_seconds_until_expiry(&self) -> i64 {
-        (self.options[0].get_expiration() - Utc::now()).num_seconds()
-    }
-
     pub fn get_expiry(&self) -> DateTime<Utc> {
         self.options[0].get_expiration()
     }
