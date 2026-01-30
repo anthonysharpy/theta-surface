@@ -5,7 +5,6 @@ check unsafe unwraps
 
 fuzzing tests to test for bullshit crashes etc
 
-make sure legend explanations in readme are correct. possibly update readme image
 time until values are calculated inconsistently
 
 bug -> Smile graph data ranges from 1970-01-01T19:54:12+00:00 to 1970-11-28T19:54:12+00:00
