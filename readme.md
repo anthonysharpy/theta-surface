@@ -76,6 +76,7 @@ _**build-graphs**_
 
 ## Known limitations
 
+- Volatility is shown for calls and puts combined. It's probably more useful to have separate smiles for puts and calls.
 - Fitting can be slow. I think there are still optimisations to be made here. An obvious one would be making it multi-threaded.
 - Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
 - More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.

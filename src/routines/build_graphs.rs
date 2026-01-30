@@ -2,10 +2,12 @@ use core::f64;
 use std::cmp::max;
 
 use chrono::{DateTime, Utc};
+use plotters::element::DashedPathElement;
 use plotters::style::full_palette::GREY;
 
 use crate::analytics::{self, SmileGraph, SmileGraphsDataContainer};
 use crate::fileio;
+use crate::types::UnsolveableError;
 use plotters::prelude::*;
 
 /// A point on the graph representing data from one option.
@@ -33,7 +35,14 @@ pub fn build_graphs() {
     for graph in graphs_data.smile_graphs {
         let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility_1) =
             build_graph_lines(&graph, 400);
-        let (option_points, highest_implied_volatility_2) = build_graph_points(&graph);
+
+        let (option_points, highest_implied_volatility_2) = match build_graph_points(&graph) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("Failed building graph: {}, skipping...", e.reason);
+                continue;
+            }
+        };
 
         create_graph(
             graph.get_expiry(),
@@ -42,6 +51,7 @@ pub fn build_graphs() {
             middle_points,
             last_quarter_points,
             option_points,
+            build_forward_price_point(&graph),
         );
     }
 
@@ -49,17 +59,29 @@ pub fn build_graphs() {
     println!("===============================================================");
 }
 
+fn build_forward_price_point(smile_graph: &SmileGraph) -> (f64, f64) {
+    let forward_price = smile_graph.get_underlying_forward_price();
+
+    // forward_price / forward_price = 1
+    let log_moneyness = 1.0_f64.ln();
+    let expiry = smile_graph.get_years_until_expiry();
+    let implied_variance = analytics::svi_variance(&smile_graph.svi_curve_parameters, log_moneyness).unwrap();
+    let implied_volatility = (implied_variance / expiry).sqrt();
+
+    (forward_price, implied_volatility)
+}
+
 /// Get the points on the graphs. Also returns the highest found implied volatility as the last parameter.
-fn build_graph_points(smile_graph: &SmileGraph) -> (Vec<OptionGraphPoint>, f64) {
+fn build_graph_points(smile_graph: &SmileGraph) -> Result<(Vec<OptionGraphPoint>, f64), UnsolveableError> {
     let mut points: Vec<OptionGraphPoint> = Vec::new();
     let mut highest_implied_volatility = f64::MIN;
 
     for option in &smile_graph.options {
         let log_moneyness = (option.strike / smile_graph.get_underlying_forward_price()).ln();
         let expiry = smile_graph.get_years_until_expiry();
-        let implied_variance = analytics::svi_variance(&smile_graph.svi_curve_parameters, log_moneyness).unwrap();
+        let implied_variance = analytics::svi_variance(&smile_graph.svi_curve_parameters, log_moneyness)?;
         let implied_volatility = (implied_variance / expiry).sqrt();
-        let self_implied_volatility = option.get_implied_volatility().unwrap();
+        let self_implied_volatility = option.get_implied_volatility()?;
 
         assert!(
             implied_volatility < 20.0,
@@ -84,7 +106,7 @@ fn build_graph_points(smile_graph: &SmileGraph) -> (Vec<OptionGraphPoint>, f64) 
         });
     }
 
-    (points, highest_implied_volatility)
+    Ok((points, highest_implied_volatility))
 }
 
 /// # Arguments
@@ -227,6 +249,7 @@ fn create_graph(
     observed_data_points: Vec<(f64, f64)>,
     extrapolated_last_quarter_points: Vec<(f64, f64)>,
     option_points: Vec<OptionGraphPoint>,
+    forward_price_point: (f64, f64),
 ) {
     let path = format!("./data/graphs/btc-smile-graph-{}.png", expiry.format("%Y-%m-%d"));
     let root = BitMapBackend::new(&path, (1920, 1080)).into_drawing_area();
@@ -257,22 +280,36 @@ fn create_graph(
         .draw()
         .expect("Drawing graph mesh failed");
 
+    // Curve lines.
     chart
         .draw_series(LineSeries::new(extrapolated_first_quarter_points, &GREY))
-        .expect("Drawing graph series failed")
+        .expect("Drawing curve first quarter failed")
         .label("Extrapolated data")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREY));
 
     chart
         .draw_series(LineSeries::new(observed_data_points, &RED))
-        .expect("Drawing graph series failed")
+        .expect("Drawing curve middle failed")
         .label("Observed data")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
 
     chart
         .draw_series(LineSeries::new(extrapolated_last_quarter_points, &GREY))
-        .expect("Drawing graph series failed");
+        .expect("Drawing curve last quarter failed");
 
+    // Forward price line.
+    chart
+        .draw_series(DashedLineSeries::new(
+            vec![forward_price_point, (forward_price_point.0, 0.0)],
+            6,
+            4,
+            ShapeStyle::from(RED),
+        ))
+        .expect("Drawing forward price line failed")
+        .label("Forward price")
+        .legend(|(x, y)| DashedPathElement::new(vec![(x, y), (x + 20, y)], 6, 4, RED));
+
+    // Option points.
     chart
         .draw_series(PointSeries::<_, _, Circle<_, _>, _>::new(
             option_points.iter().map(|x| (x.strike, x.smile_relative_implied_volatility)),
