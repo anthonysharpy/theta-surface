@@ -1,3 +1,7 @@
+use chrono::Utc;
+
+use crate::helpers::set_now;
+
 mod analytics;
 mod constants;
 mod fileio;
@@ -9,6 +13,8 @@ mod types;
 
 #[tokio::main]
 async fn main() {
+    set_now(Utc::now());
+
     let args: Vec<String> = std::env::args().collect();
 
     if args.iter().any(|a| a == "fetch-market-data") {

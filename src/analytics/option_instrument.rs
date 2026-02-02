@@ -3,8 +3,8 @@ use std::{cell::Cell, f64::consts::E};
 use chrono::{DateTime, Utc};
 
 use crate::{
-    analytics::{OptionType, math::calculate_bs_implied_volatility},
-    constants,
+    analytics::{OptionType, math},
+    constants, helpers,
     types::UnsolveableError,
 };
 
@@ -49,7 +49,7 @@ impl OptionInstrument {
     }
 
     pub fn get_years_until_expiry(&self) -> f64 {
-        (self.get_expiration() - Utc::now()).num_seconds() as f64 / 31556926.0
+        (self.get_expiration() - helpers::get_now()).num_seconds() as f64 / 31556926.0
     }
 
     pub fn get_implied_volatility(&self) -> Result<f64, UnsolveableError> {
@@ -57,7 +57,7 @@ impl OptionInstrument {
             return Ok(self.implied_volatility.get().unwrap());
         }
 
-        let implied_volatility = calculate_bs_implied_volatility(
+        let implied_volatility = math::calculate_bs_implied_volatility(
             self.spot_price,
             self.strike,
             self.get_years_until_expiry(),
