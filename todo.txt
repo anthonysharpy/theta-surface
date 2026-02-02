@@ -3,6 +3,6 @@ black scholes explodes if volatility is 0
 
 check unsafe unwraps
 
-fuzzing tests to test for bullshit crashes etc
+fuzzing tests to test for crashes etc
 
 time until values are calculated inconsistently
