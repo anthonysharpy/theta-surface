@@ -82,7 +82,28 @@ _**build-graphs**_
 - Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
 - More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.
 
-## Changelog
+## Recent Changes
 
 ### 2 Feb 2026
 - Use a single saved time value instead of constantly fetching the current time, which causes distortions based on how long the program has been running.
+
+### 30 Jan 2026
+- Add forward price line to graphs.
+- Clarify output on graph build failure to say that stale data can cause graph building failures.
+
+### 27 Jan 2026
+- Add improved fitting algorithm based on patience. Derive the `a` value in SVI formula rather than guessing it as testing shows this gives much improved performance and accuracy.
+- Fix butterfly arbitrage checks not checking whole graph range. Increase sampling resolution.
+- Make fitting patience more aggressive/faster.
+- Don't save calculated values to file as they might have been calculated using the current time and we don't want to accidentally use them again in future.
+- Don't print average graph error for now since errors are relative per-graph, and so the average is somewhat meaningless.
+
+### 23 Jan 2026
+- Add debugging constants.
+- Normalise spot prices for all options with the same expiry.
+
+### 22 Jan 2026
+- Add points on the graph showing the options.
+- Require minimum number of options per graph. Fail to fit graph if not met.
+- Retry network failures when downloading API data.
+- Optimise SVI by trying different starting values, or we easily get stuck in local minima.
