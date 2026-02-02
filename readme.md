@@ -84,5 +84,5 @@ _**build-graphs**_
 
 ## Changelog
 
-### 2/1/2026
+### 2 Feb 2026
 - Use a single saved time value instead of constantly fetching the current time, which causes distortions based on how long the program has been running.
