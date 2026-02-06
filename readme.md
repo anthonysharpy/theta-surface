@@ -14,6 +14,50 @@ The purpose of this is to demonstrate the implementation of complex market-based
 - **Self-relative implied volatility**: The actual implied volatility of an option according to its own data. Basically, this is what the curve is trying to fit. Multiple of these on the same strike usually implies a put/call pair. If these show a trend that differs greatly from the curve, it implies that the curve was badly fit.
 - **Forward-price**: The forward price of the asset.
 
+## Maths
+
+Below are some of the formulas used for calculating the graphs.
+
+**SVI parameterisation curve**
+
+$$
+w(k) = a + b\left(\rho\,(k-m) + \sqrt{(k-m)^2 + \sigma^2}\right)
+$$
+
+where
+
+$$
+k = \ln\!\left(\frac{K}{F_T}\right), \qquad w(k) = \sigma_{\text{impl}}^2(k,T)\,T.
+$$
+
+Implied volatility from SVI:
+
+$$
+\sigma_{\text{impl}}(k,T) = \sqrt{\frac{w(k)}{T}}.
+$$
+
+**Black-Scholes implied volatility formula**
+
+Call:
+
+$$
+C = S_0 e^{-qT} N(d_1) - K e^{-rT} N(d_2)
+$$
+
+Put:
+
+$$
+P = K e^{-rT} N(-d_2) - S_0 e^{-qT} N(-d_1)
+$$
+
+with
+
+$$
+d_1 = \frac{\ln\!\left(\frac{S_0}{K}\right) + \left(r-q+\frac{1}{2}\sigma^2\right)T}{\sigma\sqrt{T}},
+\qquad
+d_2 = d_1 - \sigma\sqrt{T}.
+$$
+
 ## Usage
 
 1. Enter the project's root directory.
