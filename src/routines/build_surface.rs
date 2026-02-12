@@ -13,7 +13,7 @@ pub fn build_surface() {
     println!("===============================================================");
     println!("===============================================================");
 
-    let raw_data = load_saved_deribit_api_data();
+    let raw_data = load_saved_deribit_api_data().unwrap_or_else(|e| panic!("Loading saved data failed: {}", e.reason));
     println!("------------------------------");
 
     let options = convert_external_data_to_internal_format(raw_data)
@@ -27,20 +27,20 @@ pub fn build_surface() {
     let mut smile_graphs = build_smile_graphs(grouped_options);
     println!("------------------------------");
 
-    fit_smile_graphs(&mut smile_graphs);
+    fit_smile_graphs(&mut smile_graphs).unwrap_or_else(|e| panic!("Failed fitting smile graphs: {}", e.reason));
     println!("------------------------------");
 
-    save_data_to_file(smile_graphs);
+    save_data_to_file(smile_graphs).unwrap_or_else(|e| panic!("Failed saving surface data to file: {}", e.reason));
     println!("===============================================================");
 }
 
-fn load_saved_deribit_api_data() -> DeribitDataContainer {
+fn load_saved_deribit_api_data() -> Result<DeribitDataContainer, TSError> {
     println!("Loading external API data...");
-    let data = fileio::load_struct_from_file::<DeribitDataContainer>("./data/deribit-btc-market-data.json");
+    let data = fileio::load_struct_from_file::<DeribitDataContainer>("./data/deribit-btc-market-data.json")?;
     let external_data_count = data.options.len();
     println!("Found {external_data_count} options");
 
-    data
+    Ok(data)
 }
 
 /// Turn API data into our internal options type, throwing away bad data.
@@ -88,7 +88,7 @@ fn group_options_by_expiry(options: Vec<OptionInstrument>) -> Result<HashMap<i64
     let mut grouped_options: HashMap<i64, Vec<OptionInstrument>> = HashMap::new();
 
     for option in options {
-        let expiration = option.get_expiration().timestamp_millis();
+        let expiration = option.get_expiration()?.timestamp_millis();
 
         if grouped_options.contains_key(&expiration) {
             grouped_options
@@ -96,7 +96,7 @@ fn group_options_by_expiry(options: Vec<OptionInstrument>) -> Result<HashMap<i64
                 .ok_or(TSError::new(RuntimeError, "Failed getting grouped_options mutator"))?
                 .push(option);
         } else {
-            let formatted_expiration = option.get_expiration().to_rfc3339();
+            let formatted_expiration = option.get_expiration()?.to_rfc3339();
             println!("Found a new expiry {expiration} (i.e. {formatted_expiration})...");
             let mut new_vector: Vec<OptionInstrument> = Vec::new();
             new_vector.push(option);
@@ -138,7 +138,7 @@ fn build_smile_graphs(grouped_options: HashMap<i64, Vec<OptionInstrument>>) -> V
     smiles
 }
 
-fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) {
+fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) -> Result<(), TSError> {
     println!("Fitting smile graphs...");
 
     let mut succeeded_smiles = 0;
@@ -147,7 +147,7 @@ fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) {
     for graph in smile_graphs.iter_mut() {
         let current_smile = succeeded_smiles + failed_smiles + 1;
         println!("");
-        println!("Fitting smile {current_smile} ({})...", graph.get_expiry().to_rfc3339());
+        println!("Fitting smile {current_smile} ({})...", graph.get_expiry()?.to_rfc3339());
         println!("=====================================");
 
         match graph.fit_smile() {
@@ -163,16 +163,20 @@ fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) {
     }
 
     println!("Successfully fit {}/{} smiles...", succeeded_smiles, smile_graphs.len());
+
+    Ok(())
 }
 
-fn save_data_to_file(smiles: Vec<SmileGraph>) {
+fn save_data_to_file(smiles: Vec<SmileGraph>) -> Result<(), TSError> {
     println!("Saving data to file...");
 
     let data = SmileGraphsDataContainer {
         smile_graphs: smiles.into_iter().filter(|graph| graph.has_been_fit).collect(),
     };
 
-    fileio::save_struct_to_file(&data, "./data/smile-graph-data.json");
+    fileio::save_struct_to_file(&data, "./data/smile-graph-data.json")?;
 
     println!("Successfully saved to file");
+
+    Ok(())
 }

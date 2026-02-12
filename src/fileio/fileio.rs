@@ -5,21 +5,28 @@ use serde::{Serialize, de::DeserializeOwned};
 use crate::types::TSError;
 use crate::types::TSErrorType::RuntimeError;
 
-pub fn save_struct_to_file<T: Serialize>(obj: &T, path: &str) {
-    let text = serde_json::to_string_pretty(obj).expect("Failed serialising object");
+pub fn save_struct_to_file<T: Serialize>(obj: &T, path: &str) -> Result<(), TSError> {
+    let text =
+        serde_json::to_string_pretty(obj).map_err(|e| TSError::new(RuntimeError, format!("Failed serialising object: {}", e)))?;
 
-    fs::write(path, text).expect(&format!("Failed writing text to path {}", path))
+    fs::write(path, text).map_err(|e| TSError::new(RuntimeError, format!("Failed writing text to path {}: {}", path, e)))?;
+
+    Ok(())
 }
 
-pub fn load_struct_from_file<T: DeserializeOwned>(path: &str) -> T {
-    let data = fs::read_to_string(path).expect(&format!("Failed reading file at path {}", path));
+pub fn load_struct_from_file<T: DeserializeOwned>(path: &str) -> Result<T, TSError> {
+    let data = fs::read_to_string(path)
+        .map_err(|e| TSError::new(RuntimeError, format!("Failed reading file at path {}: {}", path, e)))?;
 
-    serde_json::from_str::<T>(&data).expect("Failed deserialising object")
+    Ok(
+        serde_json::from_str::<T>(&data)
+            .map_err(|e| TSError::new(RuntimeError, format!("Failed deserialising object: {}", e)))?,
+    )
 }
 
 /// Delete all files in the given directory except files whose name contains ignore_filter.
 pub fn clear_directory(path: &str, ignore_filter: &str) -> Result<(), TSError> {
-    let files = fs::read_dir(path).expect(&format!("Couldn't read directory {path}"));
+    let files = fs::read_dir(path).map_err(|e| TSError::new(RuntimeError, format!("Coulnd't read directory {}: {}", path, e)))?;
 
     for file in files {
         let file_info = match file {

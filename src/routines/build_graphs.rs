@@ -45,7 +45,14 @@ pub fn build_graphs() {
             }
         };
 
-        let forward_price = graph.get_underlying_forward_price();
+        let forward_price = match graph.get_underlying_forward_price() {
+            Err(e) => {
+                println!("Failed getting graph underlying forward price: {}, skipping...", e.reason);
+                continue;
+            }
+            Ok(v) => v,
+        };
+
         let implied_volatility_at_forward_price = match graph.get_implied_volatility_at_strike(forward_price) {
             Ok(v) => v,
             Err(e) => {
@@ -54,8 +61,16 @@ pub fn build_graphs() {
             }
         };
 
+        let expiry = match graph.get_expiry() {
+            Err(e) => {
+                println!("Failed getting graph expiry: {}, skipping...", e.reason);
+                continue;
+            }
+            Ok(v) => v,
+        };
+
         let _ = create_graph(
-            graph.get_expiry(),
+            expiry,
             highest_implied_volatility_1.max(highest_implied_volatility_2),
             first_quarter_points,
             middle_points,
@@ -198,20 +213,21 @@ fn delete_existing_graphs() {
 
 fn load_api_data() -> Result<SmileGraphsDataContainer, TSError> {
     println!("Loading external API data...");
-    let data = fileio::load_struct_from_file::<SmileGraphsDataContainer>("./data/smile-graph-data.json");
+    let data = fileio::load_struct_from_file::<SmileGraphsDataContainer>("./data/smile-graph-data.json")?;
 
-    let first_expiry = data
+    let expiries = data
         .smile_graphs
         .iter()
-        .min_by_key(|x| x.get_expiry().timestamp())
-        .ok_or(TSError::new(RuntimeError, "Failed getting minimum graph expiry"))?
-        .get_expiry();
-    let last_expiry = data
-        .smile_graphs
+        .map(|x| x.get_expiry())
+        .collect::<Result<Vec<DateTime<Utc>>, TSError>>()?;
+    let first_expiry = expiries
         .iter()
-        .max_by_key(|x| x.get_expiry().timestamp())
-        .ok_or(TSError::new(RuntimeError, "Failed getting maximum graph expiry"))?
-        .get_expiry();
+        .min_by_key(|x| x.timestamp())
+        .ok_or(TSError::new(RuntimeError, "Failed getting minimum graph expiry"))?;
+    let last_expiry = expiries
+        .iter()
+        .max_by_key(|x| x.timestamp())
+        .ok_or(TSError::new(RuntimeError, "Failed getting maximum graph expiry"))?;
 
     let smile_graphs_count = data.smile_graphs.len();
 
@@ -235,7 +251,8 @@ fn create_graph(
 
     println!("Creating graph at {path}...");
 
-    root.fill(&WHITE).expect("Filling graph failed");
+    root.fill(&WHITE)
+        .map_err(|e| TSError::new(RuntimeError, format!("Filling graph failed: {}", e)))?;
 
     let first_point = extrapolated_first_quarter_points
         .first()
@@ -256,7 +273,7 @@ fn create_graph(
         .x_label_area_size(50)
         .y_label_area_size(50)
         .build_cartesian_2d(min_x as f64..last_point.0, 0.0..y_finish * 1.05)
-        .expect("Building graph failed");
+        .map_err(|e| TSError::new(RuntimeError, format!("Building graph failed: {}", e)))?;
 
     chart
         .configure_mesh()
@@ -264,24 +281,24 @@ fn create_graph(
         .y_desc("Implied Volatility (σ)")
         .axis_desc_style(("sans-serif", 30))
         .draw()
-        .expect("Drawing graph mesh failed");
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing graph mesh failed: {}", e)))?;
 
     // Curve lines.
     chart
         .draw_series(LineSeries::new(extrapolated_first_quarter_points, &GREY))
-        .expect("Drawing curve first quarter failed")
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing curve first quarter failed: {}", e)))?
         .label("Extrapolated data")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREY));
 
     chart
         .draw_series(LineSeries::new(observed_data_points, &RED))
-        .expect("Drawing curve middle failed")
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing curve middle failed: {}", e)))?
         .label("Observed data")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
 
     chart
         .draw_series(LineSeries::new(extrapolated_last_quarter_points, &GREY))
-        .expect("Drawing curve last quarter failed");
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing curve last quarter failed: {}", e)))?;
 
     // Forward price line.
     chart
@@ -291,7 +308,7 @@ fn create_graph(
             4,
             ShapeStyle::from(RED),
         ))
-        .expect("Drawing forward price line failed")
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing forward price line failed: {}", e)))?
         .label("Forward price")
         .legend(|(x, y)| DashedPathElement::new(vec![(x, y), (x + 20, y)], 6, 4, RED));
 
@@ -302,7 +319,7 @@ fn create_graph(
             5,
             BLUE.filled(),
         ))
-        .expect("Drawing option points failed")
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing option points failed: {}", e)))?
         .label("Smile-relative implied volatility")
         .legend(|(x, y)| Circle::new((x, y), 5, BLUE.filled()));
 
@@ -312,7 +329,7 @@ fn create_graph(
             5,
             GREY.filled(),
         ))
-        .expect("Drawing option points failed")
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing option points failed: {}", e)))?
         .label("Self-relative implied volatility")
         .legend(|(x, y)| Circle::new((x, y), 5, GREY.filled()));
 
@@ -321,9 +338,10 @@ fn create_graph(
         .background_style(&WHITE.mix(0.8))
         .border_style(&BLACK)
         .draw()
-        .expect("Drawing series label failed");
+        .map_err(|e| TSError::new(RuntimeError, format!("Drawing series label failed: {}", e)))?;
 
-    root.present().expect("Finalising graph failed");
+    root.present()
+        .map_err(|e| TSError::new(RuntimeError, format!("Finalising graph failed: {}", e)))?;
 
     Ok(())
 }

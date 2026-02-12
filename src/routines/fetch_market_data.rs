@@ -13,23 +13,25 @@ pub async fn fetch_market_data() {
     println!("===============================================================");
     println!("===============================================================");
 
-    let mut options = download_options().await;
+    let mut options = download_options()
+        .await
+        .unwrap_or_else(|e| panic!("Failed downloading options: {}", e.reason));
     println!("------------------------------");
 
     normalise_data(&mut options).unwrap_or_else(|e| panic!("Failed normalising API data: {}", e.reason));
     println!("------------------------------");
 
-    save_data(options);
+    save_data(options).unwrap_or_else(|e| panic!("Failed saving API data to file: {}", e.reason));
     println!("===============================================================");
 }
 
-async fn download_options() -> Vec<DeribitOptionInstrument> {
+async fn download_options() -> Result<Vec<DeribitOptionInstrument>, TSError> {
     println!("Fetching options...");
     let mut options = network::do_rpc_request_as_struct::<Vec<DeribitOptionInstrument>>(
         "https://www.deribit.com/api/v2/public/get_instruments?currency=BTC&kind=option&expired=false",
     )
     .await
-    .expect("Failed downloading options");
+    .map_err(|e| TSError::new(RuntimeError, format!("Failed downloading options:: {}", e)))?;
 
     let mut i: usize = 0;
 
@@ -60,7 +62,7 @@ async fn download_options() -> Vec<DeribitOptionInstrument> {
         };
     }
 
-    options
+    Ok(options)
 }
 
 /// The data has some anomalies because we can't download it all in one go. For example, the spot prices will be different
@@ -85,10 +87,12 @@ fn normalise_data(options: &mut Vec<DeribitOptionInstrument>) -> Result<(), TSEr
     Ok(())
 }
 
-fn save_data(options: Vec<DeribitOptionInstrument>) {
+fn save_data(options: Vec<DeribitOptionInstrument>) -> Result<(), TSError> {
     println!("Saving data to file...");
 
     let data = DeribitDataContainer { options: options };
 
-    fileio::save_struct_to_file(&data, "./data/deribit-btc-market-data.json");
+    fileio::save_struct_to_file(&data, "./data/deribit-btc-market-data.json")?;
+
+    Ok(())
 }

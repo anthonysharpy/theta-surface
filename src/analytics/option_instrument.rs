@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use crate::{
     analytics::{OptionType, math},
     constants, helpers,
-    types::{TSError, TSErrorType::UnsolveableError},
+    types::{TSError, TSErrorType::RuntimeError, TSErrorType::UnsolveableError},
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -44,12 +44,13 @@ impl OptionInstrument {
         }
     }
 
-    pub fn get_expiration(&self) -> DateTime<Utc> {
-        DateTime::from_timestamp_secs(self.expiry_seconds as i64).expect("expiry_seconds must be valid")
+    pub fn get_expiration(&self) -> Result<DateTime<Utc>, TSError> {
+        Ok(DateTime::from_timestamp_secs(self.expiry_seconds as i64)
+            .ok_or(TSError::new(RuntimeError, "Failed creating timestamp from expiry_seconds"))?)
     }
 
-    pub fn get_years_until_expiry(&self) -> f64 {
-        (self.get_expiration() - helpers::get_now()).num_seconds() as f64 / 31556926.0
+    pub fn get_years_until_expiry(&self) -> Result<f64, TSError> {
+        Ok((self.get_expiration()? - helpers::get_now()).num_seconds() as f64 / 31556926.0)
     }
 
     pub fn get_implied_volatility(&self) -> Result<f64, TSError> {
@@ -61,7 +62,7 @@ impl OptionInstrument {
         let implied_volatility = math::calculate_bs_implied_volatility(
             self.spot_price,
             self.strike,
-            self.get_years_until_expiry(),
+            self.get_years_until_expiry()?,
             constants::INTEREST_FREE_RATE,
             self.price,
             self.option_type,
@@ -87,7 +88,7 @@ impl OptionInstrument {
         };
 
         let implied_volatility = self.get_implied_volatility()?;
-        let total_implied_variance = implied_volatility.powf(2.0) * self.get_years_until_expiry();
+        let total_implied_variance = implied_volatility.powf(2.0) * self.get_years_until_expiry()?;
 
         self.total_implied_variance.set(Some(total_implied_variance));
         Ok(total_implied_variance)

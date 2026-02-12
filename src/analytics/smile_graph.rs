@@ -45,23 +45,23 @@ impl SmileGraph {
     /// Get the forward price that best represents all of the options. In reality, since we have normalised all the
     /// options to have the same spot price, it doesn't matter much how we calculate this. The only real guess here
     /// is the interest free rate.
-    pub fn get_underlying_forward_price(&self) -> f64 {
-        self.options[0].spot_price * E.powf(constants::INTEREST_FREE_RATE * self.options[0].get_years_until_expiry())
+    pub fn get_underlying_forward_price(&self) -> Result<f64, TSError> {
+        Ok(self.options[0].spot_price * E.powf(constants::INTEREST_FREE_RATE * self.options[0].get_years_until_expiry()?))
     }
 
     pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, TSError> {
-        let log_moneyness = (strike / self.get_underlying_forward_price()).ln();
+        let log_moneyness = (strike / self.get_underlying_forward_price()?).ln();
         let implied_variance = analytics::svi_variance(&self.svi_curve_parameters, log_moneyness)?;
 
-        Ok((implied_variance / self.get_years_until_expiry()).sqrt())
+        Ok((implied_variance / self.get_years_until_expiry()?).sqrt())
     }
 
-    pub fn get_years_until_expiry(&self) -> f64 {
-        self.options[0].get_years_until_expiry()
+    pub fn get_years_until_expiry(&self) -> Result<f64, TSError> {
+        Ok(self.options[0].get_years_until_expiry()?)
     }
 
-    pub fn get_expiry(&self) -> DateTime<Utc> {
-        self.options[0].get_expiration()
+    pub fn get_expiry(&self) -> Result<DateTime<Utc>, TSError> {
+        Ok(self.options[0].get_expiration()?)
     }
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), TSError> {
@@ -91,7 +91,7 @@ impl SmileGraph {
             self.lowest_observed_strike = option.strike;
         }
 
-        let implied_volatility = option.get_implied_volatility().expect("Implied volatility was unsolveable");
+        let implied_volatility = option.get_implied_volatility()?;
 
         if implied_volatility > self.highest_observed_implied_volatility {
             self.highest_observed_implied_volatility = implied_volatility;
@@ -144,16 +144,13 @@ impl SmileGraph {
         let mut best_error = f64::MAX;
         let mut best_params: Option<SVICurveParameters> = None;
 
+        let forward_price = self.get_underlying_forward_price()?;
         let option_total_implied_variances: Vec<f64> = self
             .options
             .iter()
             .map(|x| x.get_total_implied_variance())
             .collect::<Result<Vec<f64>, TSError>>()?;
-        let option_log_moneynesses: Vec<f64> = self
-            .options
-            .iter()
-            .map(|x| (x.strike / self.get_underlying_forward_price()).ln())
-            .collect();
+        let option_log_moneynesses: Vec<f64> = self.options.iter().map(|x| (x.strike / forward_price).ln()).collect();
         let highest_total_implied_variance = *option_total_implied_variances
             .iter()
             .max_by(|a, b| a.total_cmp(b))
@@ -351,7 +348,7 @@ fn calculate_least_squares_residual(
 
     // This uses the option's own forward price. Which would probably be wrong were it not for the fact that
     // all options of the same expiry are given the same spot price (and therefore forward price).
-    let total_implied_variance = option.get_total_implied_variance().expect("Option must be valid");
+    let total_implied_variance = option.get_total_implied_variance()?;
 
     // Check the error even if constants::VALIDATE_SVI is false, because allowing this will probably mess with the error
     // function.
@@ -384,7 +381,9 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
                 let residual = calculate_least_squares_residual(
                     svi_params.as_ref().unwrap(),
                     &option,
-                    self.smile_graph.get_underlying_forward_price(),
+                    self.smile_graph
+                        .get_underlying_forward_price()
+                        .expect("Graph forward price must be valid"),
                 );
 
                 if residual.is_err() {
@@ -414,7 +413,9 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
                 self.curve.as_ref().unwrap(),
                 1,
                 (self.smile_graph.highest_observed_strike * 1.5).ceil() as u64,
-                self.smile_graph.get_underlying_forward_price(),
+                self.smile_graph
+                    .get_underlying_forward_price()
+                    .expect("Graph forward price must be valid"),
                 150,
             );
 
@@ -435,7 +436,9 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
                 let still_valid = calculate_least_squares_residual(
                     self.curve.as_ref().unwrap(),
                     &option,
-                    self.smile_graph.get_underlying_forward_price(),
+                    self.smile_graph
+                        .get_underlying_forward_price()
+                        .expect("Graph forward price must be valid"),
                 )
                 .is_ok();
 
@@ -465,7 +468,9 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             let residual = calculate_least_squares_residual(
                 self.curve.as_ref().unwrap(),
                 option,
-                self.smile_graph.get_underlying_forward_price(),
+                self.smile_graph
+                    .get_underlying_forward_price()
+                    .expect("Graph forward price must be valid"),
             )
             .expect("We should already have checked this already in set_params()");
 
@@ -493,7 +498,11 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             }
 
             // d and s come directly from the SVI equation. By using them we make writing the derivatives below simpler.
-            let d = option.get_log_moneyness_using_custom_forward(self.smile_graph.get_underlying_forward_price()) - m;
+            let d = option.get_log_moneyness_using_custom_forward(
+                self.smile_graph
+                    .get_underlying_forward_price()
+                    .expect("Graph forward price must be valid"),
+            ) - m;
             let s = (d.powf(2.0) + o.powf(2.0)).sqrt();
 
             let deriv_b = p * d + s;
