@@ -1,8 +1,8 @@
 black scholes explodes if expiry is 0.00001 years
 black scholes explodes if volatility is 0
 
-check unsafe unwraps
-
 fuzzing tests to test for crashes etc
 
 time until values are calculated inconsistently
+
+make it so functions always go onto next line
