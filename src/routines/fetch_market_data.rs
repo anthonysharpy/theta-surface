@@ -3,6 +3,8 @@ use crate::integrations::DeribitDataContainer;
 use crate::integrations::DeribitOptionInstrument;
 use crate::integrations::DeribitTickerData;
 use crate::network;
+use crate::types::TSError;
+use crate::types::TSErrorType::RuntimeError;
 
 pub async fn fetch_market_data() {
     println!("===============================================================");
@@ -14,7 +16,7 @@ pub async fn fetch_market_data() {
     let mut options = download_options().await;
     println!("------------------------------");
 
-    normalise_data(&mut options);
+    normalise_data(&mut options).unwrap_or_else(|e| panic!("Failed normalising API data: {}", e.reason));
     println!("------------------------------");
 
     save_data(options);
@@ -40,36 +42,47 @@ async fn download_options() -> Vec<DeribitOptionInstrument> {
         let url = format!("https://www.deribit.com/api/v2/public/ticker?instrument_name={}", options[i].instrument_name);
         let ticker_request = network::do_rpc_request_as_struct::<DeribitTickerData>(&url);
 
-        let data = ticker_request.await;
+        match ticker_request.await {
+            Err(_) => {
+                // If i == 0 and we subtract 1, it's going to explode.
+                if i == 0 {
+                    panic!("Downloading data failed, please try again");
+                }
 
-        if data.is_err() {
-            // If i == 0 and we subtract 1, it's going to explode.
-            if i == 0 {
-                panic!("Downloading data failed, please try again");
+                println!("Request failed, trying again...");
+                i -= 1;
+                continue;
             }
-
-            println!("Request failed, trying again...");
-            i -= 1;
-            continue;
-        }
-
-        options[i].ticker_data = Some(data.unwrap());
-        i += 1;
+            Ok(v) => {
+                options[i].ticker_data = Some(v);
+                i += 1;
+            }
+        };
     }
 
     options
 }
 
 /// The data has some anomalies because we can't download it all in one go. For example, the spot prices will be different
-/// for no reason. We can improve the quality of the data by adjusting that.
-fn normalise_data(options: &mut Vec<DeribitOptionInstrument>) {
+/// for no reason. We can improve the quality of the data by normalising that.
+fn normalise_data(options: &mut Vec<DeribitOptionInstrument>) -> Result<(), TSError> {
     println!("Normalising data...");
 
-    let spot_price = options[0].ticker_data.as_ref().unwrap().index_price;
+    let spot_price = options[0]
+        .ticker_data
+        .as_ref()
+        .ok_or(TSError::new(RuntimeError, "Failed getting ticker data reference"))?
+        .index_price;
 
     for option in options {
-        option.ticker_data.as_mut().unwrap().index_price = spot_price;
+        option
+            .ticker_data
+            .as_mut()
+            .ok_or(TSError::new(RuntimeError, "Failed getting ticker data mutable reference"))?
+            .index_price = spot_price;
     }
+
+    Ok(())
 }
 
 fn save_data(options: Vec<DeribitOptionInstrument>) {

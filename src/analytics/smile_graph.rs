@@ -144,29 +144,32 @@ impl SmileGraph {
         let mut best_error = f64::MAX;
         let mut best_params: Option<SVICurveParameters> = None;
 
-        let option_total_implied_variances: Vec<f64> =
-            self.options.iter().map(|x| x.get_total_implied_variance().unwrap()).collect();
+        let option_total_implied_variances: Vec<f64> = self
+            .options
+            .iter()
+            .map(|x| x.get_total_implied_variance())
+            .collect::<Result<Vec<f64>, TSError>>()?;
         let option_log_moneynesses: Vec<f64> = self
             .options
             .iter()
             .map(|x| (x.strike / self.get_underlying_forward_price()).ln())
             .collect();
-        let highest_total_implied_variance = option_total_implied_variances
+        let highest_total_implied_variance = *option_total_implied_variances
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
-        let lowest_total_implied_variance = option_total_implied_variances
+            .max_by(|a, b| a.total_cmp(b))
+            .ok_or(TSError::new(RuntimeError, "Couldn't find max when calculating highest_total_implied_variance"))?;
+        let lowest_total_implied_variance = *option_total_implied_variances
             .iter()
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
+            .min_by(|a, b| a.total_cmp(b))
+            .ok_or(TSError::new(RuntimeError, "Couldn't find min when calculating lowest_total_implied_variance"))?;
         let highest_log_moneyness = *option_log_moneynesses
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
+            .max_by(|a, b| a.total_cmp(b))
+            .ok_or(TSError::new(RuntimeError, "Couldn't find max when calculating highest_log_moneyness"))?;
         let lowest_log_moneyness = *option_log_moneynesses
             .iter()
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
+            .min_by(|a, b| a.total_cmp(b))
+            .ok_or(TSError::new(RuntimeError, "Couldn't find min when calculating lowest_log_moneyness"))?;
         let log_moneyness_range = highest_log_moneyness - lowest_log_moneyness;
         let s = (highest_total_implied_variance - lowest_total_implied_variance) / log_moneyness_range.max(0.000001);
 
@@ -234,19 +237,23 @@ impl SmileGraph {
                         o_patience_scale *= constants::SVI_FITTING_IMPATIENCE;
                         let new_params = SVICurveParameters::new_from_values(0.0, b, p, m, o);
 
-                        if new_params.is_err() {
-                            o += o_step * o_patience_scale;
-                            continue;
-                        }
+                        if new_params.is_err() {}
 
-                        let result = self.optimise_svi_params(new_params.unwrap());
+                        let result = match new_params {
+                            Err(_) => {
+                                o += o_step * o_patience_scale;
+                                continue;
+                            }
+                            Ok(params) => self.optimise_svi_params(params),
+                        };
 
-                        if result.is_err() {
-                            o += o_step * o_patience_scale;
-                            continue;
-                        }
-
-                        let (optimised_params, error) = result.unwrap();
+                        let (optimised_params, error) = match result {
+                            Err(_) => {
+                                o += o_step * o_patience_scale;
+                                continue;
+                            }
+                            Ok(v) => v,
+                        };
 
                         if error < best_error {
                             let error_change_since_last_patience_reset = error_at_last_patience_reset - error;
@@ -290,11 +297,8 @@ impl SmileGraph {
             b += b_step * b_patience_scale;
         }
 
-        if best_params.is_none() {
-            return Err(TSError::new(UnsolveableError, "No graph could be fit! This is probably a bug!"));
-        }
-
-        self.svi_curve_parameters = best_params.unwrap();
+        self.svi_curve_parameters =
+            best_params.ok_or(TSError::new(UnsolveableError, "No graph could be fit! This is probably a bug!"))?;
         self.has_been_fit = true;
 
         println!("Smile fit with error of {best_error}...");

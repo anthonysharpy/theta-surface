@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use crate::analytics::{OptionInstrument, SmileGraph, SmileGraphsDataContainer};
 use crate::integrations::DeribitDataContainer;
+use crate::types::TSError;
+use crate::types::TSErrorType::RuntimeError;
 use crate::{constants, fileio};
 
 pub fn build_surface() {
@@ -14,10 +16,12 @@ pub fn build_surface() {
     let raw_data = load_saved_deribit_api_data();
     println!("------------------------------");
 
-    let options = convert_external_data_to_internal_format(raw_data);
+    let options = convert_external_data_to_internal_format(raw_data)
+        .unwrap_or_else(|e| panic!("Failed converting data to internal format: {}", e.reason));
     println!("------------------------------");
 
-    let grouped_options = group_options_by_expiry(options);
+    let grouped_options =
+        group_options_by_expiry(options).unwrap_or_else(|e| panic!("Failed grouping options by expiry: {}", e.reason));
     println!("------------------------------");
 
     let mut smile_graphs = build_smile_graphs(grouped_options);
@@ -40,7 +44,7 @@ fn load_saved_deribit_api_data() -> DeribitDataContainer {
 }
 
 /// Turn API data into our internal options type, throwing away bad data.
-fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Vec<OptionInstrument> {
+fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Result<Vec<OptionInstrument>, TSError> {
     println!("Converting options to internal format...");
 
     let mut discarded_options = 0;
@@ -48,34 +52,37 @@ fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Vec<O
     let mut options: Vec<OptionInstrument> = Vec::new();
 
     for api_option in data.options {
-        if constants::ONLY_PROCESS_SMILE_DATE.is_some() {
-            if api_option.expiration_timestamp != constants::ONLY_PROCESS_SMILE_DATE.unwrap() * 1000 {
-                println!("Discarding option due to ONLY_PROCESS_SMILE_DATE flag ({})...", api_option.instrument_name);
+        match constants::ONLY_PROCESS_SMILE_DATE {
+            None => {}
+            Some(date) => {
+                if api_option.expiration_timestamp != date * 1000 {
+                    println!("Discarding option due to ONLY_PROCESS_SMILE_DATE flag ({})...", api_option.instrument_name);
+                    discarded_options += 1;
+                    continue;
+                }
+            }
+        };
+
+        match api_option.to_option() {
+            Err(e) => {
                 discarded_options += 1;
+                println!("Discarding unusable option data ({}): {}...", api_option.instrument_name, e.reason);
                 continue;
             }
-        }
-
-        let internal_option = api_option.to_option();
-
-        if internal_option.is_err() {
-            discarded_options += 1;
-            let error = internal_option.err().unwrap().reason;
-            println!("Discarding unusable option data ({}): {}...", api_option.instrument_name, error);
-            continue;
-        }
-
-        kept_options += 1;
-        options.push(internal_option.unwrap());
+            Ok(v) => {
+                kept_options += 1;
+                options.push(v);
+            }
+        };
     }
 
     let total_options = kept_options + discarded_options;
     println!("Kept {kept_options}/{total_options} options");
 
-    options
+    Ok(options)
 }
 
-fn group_options_by_expiry(options: Vec<OptionInstrument>) -> HashMap<i64, Vec<OptionInstrument>> {
+fn group_options_by_expiry(options: Vec<OptionInstrument>) -> Result<HashMap<i64, Vec<OptionInstrument>>, TSError> {
     println!("Grouping {} options by expiry...", options.len());
 
     let mut grouped_options: HashMap<i64, Vec<OptionInstrument>> = HashMap::new();
@@ -84,7 +91,10 @@ fn group_options_by_expiry(options: Vec<OptionInstrument>) -> HashMap<i64, Vec<O
         let expiration = option.get_expiration().timestamp_millis();
 
         if grouped_options.contains_key(&expiration) {
-            grouped_options.get_mut(&expiration).unwrap().push(option);
+            grouped_options
+                .get_mut(&expiration)
+                .ok_or(TSError::new(RuntimeError, "Failed getting grouped_options mutator"))?
+                .push(option);
         } else {
             let formatted_expiration = option.get_expiration().to_rfc3339();
             println!("Found a new expiry {expiration} (i.e. {formatted_expiration})...");
@@ -97,7 +107,7 @@ fn group_options_by_expiry(options: Vec<OptionInstrument>) -> HashMap<i64, Vec<O
     let number_of_groups = grouped_options.len();
     println!("Put options into {number_of_groups} groups");
 
-    grouped_options
+    Ok(grouped_options)
 }
 
 fn build_smile_graphs(grouped_options: HashMap<i64, Vec<OptionInstrument>>) -> Vec<SmileGraph> {
@@ -109,11 +119,11 @@ fn build_smile_graphs(grouped_options: HashMap<i64, Vec<OptionInstrument>>) -> V
         let mut smile_graph = SmileGraph::new();
 
         for option in options {
-            let result = smile_graph.try_insert_option(option);
-
-            if result.is_err() {
-                let err_msg = result.unwrap_err().reason;
-                println!("Discarding an invalid option: {err_msg}...");
+            match smile_graph.try_insert_option(option) {
+                Ok(_) => {}
+                Err(e) => {
+                    println!("Discarding an invalid option: {}...", e.reason);
+                }
             }
         }
 

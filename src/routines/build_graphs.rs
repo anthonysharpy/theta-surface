@@ -8,6 +8,7 @@ use plotters::style::full_palette::GREY;
 use crate::analytics::{SmileGraph, SmileGraphsDataContainer};
 use crate::fileio;
 use crate::types::TSError;
+use crate::types::TSErrorType::RuntimeError;
 use plotters::prelude::*;
 
 /// A point on the graph representing data from one option.
@@ -24,7 +25,7 @@ pub fn build_graphs() {
     println!("===============================================================");
     println!("===============================================================");
 
-    let graphs_data = load_api_data();
+    let graphs_data = load_api_data().unwrap_or_else(|e| panic!("Failed loading API data: {}", e.reason));
     println!("------------------------------");
 
     delete_existing_graphs();
@@ -53,7 +54,7 @@ pub fn build_graphs() {
             }
         };
 
-        create_graph(
+        let _ = create_graph(
             graph.get_expiry(),
             highest_implied_volatility_1.max(highest_implied_volatility_2),
             first_quarter_points,
@@ -61,7 +62,8 @@ pub fn build_graphs() {
             last_quarter_points,
             option_points,
             (forward_price, implied_volatility_at_forward_price),
-        );
+        )
+        .inspect_err(|e| println!("Failed building graph: {}", e.reason));
     }
 
     println!("Done!");
@@ -189,11 +191,12 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
 
 fn delete_existing_graphs() {
     println!("Deleting any existing graphs...");
-    fileio::clear_directory("./data/graphs/", "gitkeep");
+    fileio::clear_directory("./data/graphs/", "gitkeep")
+        .unwrap_or_else(|e| panic!("Failed clearing graphs directory: {}", e.reason));
     println!("Done!");
 }
 
-fn load_api_data() -> SmileGraphsDataContainer {
+fn load_api_data() -> Result<SmileGraphsDataContainer, TSError> {
     println!("Loading external API data...");
     let data = fileio::load_struct_from_file::<SmileGraphsDataContainer>("./data/smile-graph-data.json");
 
@@ -201,13 +204,13 @@ fn load_api_data() -> SmileGraphsDataContainer {
         .smile_graphs
         .iter()
         .min_by_key(|x| x.get_expiry().timestamp())
-        .unwrap()
+        .ok_or(TSError::new(RuntimeError, "Failed getting minimum graph expiry"))?
         .get_expiry();
     let last_expiry = data
         .smile_graphs
         .iter()
         .max_by_key(|x| x.get_expiry().timestamp())
-        .unwrap()
+        .ok_or(TSError::new(RuntimeError, "Failed getting maximum graph expiry"))?
         .get_expiry();
 
     let smile_graphs_count = data.smile_graphs.len();
@@ -215,7 +218,7 @@ fn load_api_data() -> SmileGraphsDataContainer {
     println!("Found {smile_graphs_count} smile graphs...");
     println!("Smile graph data ranges from {} to {}", first_expiry.to_rfc3339(), last_expiry.to_rfc3339());
 
-    data
+    Ok(data)
 }
 
 fn create_graph(
@@ -226,7 +229,7 @@ fn create_graph(
     extrapolated_last_quarter_points: Vec<(f64, f64)>,
     option_points: Vec<OptionGraphPoint>,
     forward_price_point: (f64, f64),
-) {
+) -> Result<(), TSError> {
     let path = format!("./data/graphs/btc-smile-graph-{}.png", expiry.format("%Y-%m-%d"));
     let root = BitMapBackend::new(&path, (1920, 1080)).into_drawing_area();
 
@@ -234,8 +237,15 @@ fn create_graph(
 
     root.fill(&WHITE).expect("Filling graph failed");
 
+    let first_point = extrapolated_first_quarter_points
+        .first()
+        .ok_or(TSError::new(RuntimeError, "Failed getting first extrapolated quarter point"))?;
+    let last_point = extrapolated_last_quarter_points
+        .last()
+        .ok_or(TSError::new(RuntimeError, "Failed getting last extrapolated quarter point"))?;
+
     // Keep x >= 0.
-    let min_x = max(0, extrapolated_first_quarter_points.first().unwrap().0 as i64);
+    let min_x = max(0, first_point.0 as i64);
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
@@ -245,7 +255,7 @@ fn create_graph(
         .margin(15)
         .x_label_area_size(50)
         .y_label_area_size(50)
-        .build_cartesian_2d(min_x as f64..extrapolated_last_quarter_points.last().unwrap().0, 0.0..y_finish * 1.05)
+        .build_cartesian_2d(min_x as f64..last_point.0, 0.0..y_finish * 1.05)
         .expect("Building graph failed");
 
     chart
@@ -314,4 +324,6 @@ fn create_graph(
         .expect("Drawing series label failed");
 
     root.present().expect("Finalising graph failed");
+
+    Ok(())
 }
