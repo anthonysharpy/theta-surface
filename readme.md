@@ -72,7 +72,7 @@ cd theta-surface
 cargo build
 ```
 
-3. Download the latest market data. This is semi-optional as the software is packaged with data by default. However, since expired options are discarded, if you don't download fresh data then none of the included data might be useable. It might also affect the quality of the output and cause graph building failures. The data takes 5-10 minutes to download and is saved in `/data`.
+3. Download the latest market data. This is semi-optional as the software is packaged with data by default. However, since expired options are discarded, if you don't download fresh data then none of the included data might be useable. It can also cause some graphs to fail to be built. The data takes 5-10 minutes to download and is saved in `/data`.
 
 ```
 ./target/debug/ThetaSurface fetch-market-data
