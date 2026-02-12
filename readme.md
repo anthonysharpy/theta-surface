@@ -128,6 +128,9 @@ _**build-graphs**_
 
 ## Recent Changes
 
+### 12 Feb 2026
+- More careful error handling.
+
 ### 2 Feb 2026
 - Use a single saved time value instead of constantly fetching the current time, which causes distortions based on how long the program has been running.
 
