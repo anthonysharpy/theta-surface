@@ -171,7 +171,10 @@ fn save_data_to_file(smiles: Vec<SmileGraph>) -> Result<(), TSError> {
     println!("Saving data to file...");
 
     let data = SmileGraphsDataContainer {
-        smile_graphs: smiles.into_iter().filter(|graph| graph.has_been_fit).collect(),
+        smile_graphs: smiles
+            .into_iter()
+            .filter(|graph| graph.has_been_fit)
+            .collect(),
     };
 
     fileio::save_struct_to_file(&data, "./data/smile-graph-data.json")?;

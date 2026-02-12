@@ -321,7 +321,9 @@ fn create_graph(
     // Option points.
     chart
         .draw_series(PointSeries::<_, _, Circle<_, _>, _>::new(
-            option_points.iter().map(|x| (x.strike, x.smile_relative_implied_volatility)),
+            option_points
+                .iter()
+                .map(|x| (x.strike, x.smile_relative_implied_volatility)),
             5,
             BLUE.filled(),
         ))
@@ -331,7 +333,9 @@ fn create_graph(
 
     chart
         .draw_series(PointSeries::<_, _, Circle<_, _>, _>::new(
-            option_points.iter().map(|x| (x.strike, x.self_relative_implied_volatility)),
+            option_points
+                .iter()
+                .map(|x| (x.strike, x.self_relative_implied_volatility)),
             5,
             GREY.filled(),
         ))

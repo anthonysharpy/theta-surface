@@ -117,7 +117,9 @@ impl SmileGraph {
         problem.set_params(&initial_params);
 
         // Library default for patience is 100.
-        let (result, report) = LevenbergMarquardt::new().with_patience(100).minimize(problem);
+        let (result, report) = LevenbergMarquardt::new()
+            .with_patience(100)
+            .minimize(problem);
 
         if !report.termination.was_successful() {
             return Err(TSError::new(
@@ -149,7 +151,11 @@ impl SmileGraph {
             .iter()
             .map(|x| x.get_total_implied_variance())
             .collect::<Result<Vec<f64>, TSError>>()?;
-        let option_log_moneynesses: Vec<f64> = self.options.iter().map(|x| (x.strike / forward_price).ln()).collect();
+        let option_log_moneynesses: Vec<f64> = self
+            .options
+            .iter()
+            .map(|x| (x.strike / forward_price).ln())
+            .collect();
         let highest_total_implied_variance = *option_total_implied_variances
             .iter()
             .max_by(|a, b| a.total_cmp(b))
