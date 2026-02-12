@@ -7,7 +7,7 @@ use plotters::style::full_palette::GREY;
 
 use crate::analytics::{SmileGraph, SmileGraphsDataContainer};
 use crate::fileio;
-use crate::types::UnsolveableError;
+use crate::types::TSError;
 use plotters::prelude::*;
 
 /// A point on the graph representing data from one option.
@@ -69,7 +69,7 @@ pub fn build_graphs() {
 }
 
 /// Get the points on the graphs. Also returns the highest found implied volatility as the last parameter.
-fn build_graph_points(smile_graph: &SmileGraph) -> Result<(Vec<OptionGraphPoint>, f64), UnsolveableError> {
+fn build_graph_points(smile_graph: &SmileGraph) -> Result<(Vec<OptionGraphPoint>, f64), TSError> {
     let mut points: Vec<OptionGraphPoint> = Vec::new();
     let mut highest_implied_volatility = f64::MIN;
 

@@ -1,11 +1,11 @@
-use std::{cell::Cell, f64::consts::E};
+use std::cell::Cell;
 
 use chrono::{DateTime, Utc};
 
 use crate::{
     analytics::{OptionType, math},
     constants, helpers,
-    types::UnsolveableError,
+    types::{TSError, TSErrorType::UnsolveableError},
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -45,17 +45,18 @@ impl OptionInstrument {
     }
 
     pub fn get_expiration(&self) -> DateTime<Utc> {
-        DateTime::from_timestamp_secs(self.expiry_seconds as i64).unwrap()
+        DateTime::from_timestamp_secs(self.expiry_seconds as i64).expect("expiry_seconds must be valid")
     }
 
     pub fn get_years_until_expiry(&self) -> f64 {
         (self.get_expiration() - helpers::get_now()).num_seconds() as f64 / 31556926.0
     }
 
-    pub fn get_implied_volatility(&self) -> Result<f64, UnsolveableError> {
-        if self.implied_volatility.get().is_some() {
-            return Ok(self.implied_volatility.get().unwrap());
-        }
+    pub fn get_implied_volatility(&self) -> Result<f64, TSError> {
+        match self.implied_volatility.get() {
+            Some(iv) => return Ok(iv),
+            None => {}
+        };
 
         let implied_volatility = math::calculate_bs_implied_volatility(
             self.spot_price,
@@ -64,44 +65,35 @@ impl OptionInstrument {
             constants::INTEREST_FREE_RATE,
             self.price,
             self.option_type,
-        );
-
-        if implied_volatility.is_err() {
+        )
+        .map_err(|e| {
             let instrument_id = &self.instrument_id;
-            let err = implied_volatility.err().unwrap().reason;
+            let err = e.reason;
 
-            return Err(UnsolveableError::new(format!(
-                "Failed calculating implied volatility for instrument {instrument_id}: {err}"
-            )));
-        }
+            TSError::new(
+                UnsolveableError,
+                format!("Failed calculating implied volatility for instrument {instrument_id}: {err}"),
+            )
+        })?;
 
-        self.implied_volatility.set(Some(implied_volatility.unwrap()));
-
-        Ok(self.implied_volatility.get().unwrap())
+        self.implied_volatility.set(Some(implied_volatility));
+        Ok(implied_volatility)
     }
 
-    pub fn get_total_implied_variance(&self) -> Result<f64, UnsolveableError> {
-        if self.total_implied_variance.get().is_some() {
-            return Ok(self.total_implied_variance.get().unwrap());
-        }
-
-        self.total_implied_variance
-            .set(Some(self.get_implied_volatility()?.powf(2.0) * self.get_years_until_expiry()));
-
-        Ok(self.total_implied_variance.get().unwrap())
-    }
-
-    pub fn get_underlying_forward_price(&self) -> f64 {
-        self.spot_price * E.powf(constants::INTEREST_FREE_RATE * self.get_years_until_expiry())
-    }
-
-    /// Use forward_price_override if for example you need to do the equation using a specific forward price.
-    pub fn get_log_moneyness(&self, forward_price_override: Option<f64>) -> f64 {
-        let forward_price = match forward_price_override.is_some() {
-            true => forward_price_override.unwrap(),
-            false => self.get_underlying_forward_price(),
+    pub fn get_total_implied_variance(&self) -> Result<f64, TSError> {
+        match self.total_implied_variance.get() {
+            Some(tiv) => return Ok(tiv),
+            None => {}
         };
 
+        let implied_volatility = self.get_implied_volatility()?;
+        let total_implied_variance = implied_volatility.powf(2.0) * self.get_years_until_expiry();
+
+        self.total_implied_variance.set(Some(total_implied_variance));
+        Ok(total_implied_variance)
+    }
+
+    pub fn get_log_moneyness_using_custom_forward(&self, forward_price: f64) -> f64 {
         (self.strike / forward_price).ln()
     }
 }

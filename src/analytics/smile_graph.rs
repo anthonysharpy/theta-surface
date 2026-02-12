@@ -9,7 +9,9 @@ use crate::{
     analytics::{self, OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
     constants,
     helpers::F64Helpers,
-    types::UnsolveableError,
+    types::TSError,
+    types::TSErrorType::RuntimeError,
+    types::TSErrorType::UnsolveableError,
 };
 
 /// A smile graph representing the change in volatility as the strike price changes for a set of options, each having the same
@@ -47,7 +49,7 @@ impl SmileGraph {
         self.options[0].spot_price * E.powf(constants::INTEREST_FREE_RATE * self.options[0].get_years_until_expiry())
     }
 
-    pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, UnsolveableError> {
+    pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, TSError> {
         let log_moneyness = (strike / self.get_underlying_forward_price()).ln();
         let implied_variance = analytics::svi_variance(&self.svi_curve_parameters, log_moneyness)?;
 
@@ -62,26 +64,20 @@ impl SmileGraph {
         self.options[0].get_expiration()
     }
 
-    fn check_option_valid(option: &OptionInstrument) -> Result<(), UnsolveableError> {
-        let total_implied_variance = option.get_total_implied_variance();
+    fn check_option_valid(option: &OptionInstrument) -> Result<(), TSError> {
+        option
+            .get_total_implied_variance()
+            .map_err(|e| TSError::new(UnsolveableError, format!("Calculating total implied variance failed: {}", e.reason)))?;
 
-        if total_implied_variance.is_err() {
-            let err = total_implied_variance.err().unwrap().reason;
-            return Err(UnsolveableError::new(format!("Calculating total implied variance failed: {err}")));
-        }
-
-        let implied_volatility = option.get_implied_volatility();
-
-        if implied_volatility.is_err() {
-            let err = implied_volatility.err().unwrap().reason;
-            return Err(UnsolveableError::new(format!("Calculating implied volatility failed: {err}")));
-        }
+        option
+            .get_implied_volatility()
+            .map_err(|e| TSError::new(UnsolveableError, format!("Calculating implied volatility failed: {}", e.reason)))?;
 
         Ok(())
     }
 
     /// Insert an option into this smile graph. The option must have the same expiry as previous inserted options (if any).
-    pub fn try_insert_option(&mut self, option: OptionInstrument) -> Result<(), UnsolveableError> {
+    pub fn try_insert_option(&mut self, option: OptionInstrument) -> Result<(), TSError> {
         Self::check_option_valid(&option)?;
 
         if self.options.len() > 0 && self.options[0].get_expiration() != option.get_expiration() {
@@ -107,7 +103,7 @@ impl SmileGraph {
     }
 
     /// Optimise the given SVI curve parameters, returning optimised parameters and their loss.
-    fn optimise_svi_params(&self, params: SVICurveParameters) -> Result<(SVICurveParameters, f64), UnsolveableError> {
+    fn optimise_svi_params(&self, params: SVICurveParameters) -> Result<(SVICurveParameters, f64), TSError> {
         let mut problem = SVIProblem {
             // The initial guess for the SVI function.
             p: Vector4::new(params.get_b(), params.get_p(), params.get_m(), params.get_o()),
@@ -124,19 +120,27 @@ impl SmileGraph {
         let (result, report) = LevenbergMarquardt::new().with_patience(100).minimize(problem);
 
         if !report.termination.was_successful() {
-            return Err(UnsolveableError::new(format!("Failed computing Levenberg-Marquardt: {:#?}", report.termination)));
+            return Err(TSError::new(
+                UnsolveableError,
+                format!("Failed computing Levenberg-Marquardt: {:#?}", report.termination),
+            ));
         }
 
         if !result.curve_valid || result.has_arbitrage {
-            return Err(UnsolveableError::new(format!("No mathematically valid curve found")));
+            return Err(TSError::new(UnsolveableError, format!("No mathematically valid curve found")));
         }
 
-        Ok((result.curve.unwrap(), report.objective_function.abs()))
+        let curve = match result.curve {
+            None => return Err(TSError::new(RuntimeError, format!("No curve was produced"))),
+            Some(c) => c,
+        };
+
+        Ok((curve, report.objective_function.abs()))
     }
 
     /// Using the provided options, calculate the smile shape that best represents the data with the least error.
     /// Returns the error on success.
-    pub fn fit_smile(&mut self) -> Result<(), UnsolveableError> {
+    pub fn fit_smile(&mut self) -> Result<(), TSError> {
         let mut best_error = f64::MAX;
         let mut best_params: Option<SVICurveParameters> = None;
 
@@ -287,7 +291,7 @@ impl SmileGraph {
         }
 
         if best_params.is_none() {
-            return Err(UnsolveableError::new("No graph could be fit! This is probably a bug!"));
+            return Err(TSError::new(UnsolveableError, "No graph could be fit! This is probably a bug!"));
         }
 
         self.svi_curve_parameters = best_params.unwrap();
@@ -338,8 +342,8 @@ fn calculate_least_squares_residual(
     params: &SVICurveParameters,
     option: &OptionInstrument,
     forward_price: f64,
-) -> Result<f64, UnsolveableError> {
-    let log_moneyness = option.get_log_moneyness(Some(forward_price));
+) -> Result<f64, TSError> {
+    let log_moneyness = option.get_log_moneyness_using_custom_forward(forward_price);
 
     // This uses the option's own forward price. Which would probably be wrong were it not for the fact that
     // all options of the same expiry are given the same spot price (and therefore forward price).
@@ -485,7 +489,7 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             }
 
             // d and s come directly from the SVI equation. By using them we make writing the derivatives below simpler.
-            let d = option.get_log_moneyness(Some(self.smile_graph.get_underlying_forward_price())) - m;
+            let d = option.get_log_moneyness_using_custom_forward(self.smile_graph.get_underlying_forward_price()) - m;
             let s = (d.powf(2.0) + o.powf(2.0)).sqrt();
 
             let deriv_b = p * d + s;

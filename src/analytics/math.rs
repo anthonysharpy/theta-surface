@@ -1,6 +1,7 @@
 use crate::analytics::OptionType;
 use crate::analytics::types::SVICurveParameters;
-use crate::types::UnsolveableError;
+use crate::types::TSError;
+use crate::types::TSErrorType::UnsolveableError;
 use std::f64::consts::E;
 
 /// Calculate the Black-Scholes implied volatility of a dividendless option.
@@ -21,7 +22,7 @@ pub fn calculate_bs_implied_volatility(
     risk_free_interest_rate: f64,
     option_price: f64,
     option_type: OptionType,
-) -> Result<f64, UnsolveableError> {
+) -> Result<f64, TSError> {
     // We'll use a simple bracketed solver to do this. Basically, we're gonna keep guessing until we get it right.
     // There are faster methods, like using the Newton method etc, but this is fine for now. Newton also doesn't work
     // well in some situations.
@@ -35,22 +36,34 @@ pub fn calculate_bs_implied_volatility(
     match option_type {
         OptionType::Call => {
             if option_price < asset_spot_price - strike_value_now {
-                return Err(UnsolveableError::new(format!(
-                    "Call option price mathematically impossibly low ({option_price} < {asset_spot_price} - {strike_value_now}) (Is the data stale?)"
-                )));
+                return Err(TSError::new(
+                    UnsolveableError,
+                    format!(
+                        "Call option price mathematically impossibly low ({option_price} < {asset_spot_price} - {strike_value_now}) (Is the data stale?)"
+                    ),
+                ));
             }
             if option_price > asset_spot_price {
-                return Err(UnsolveableError::new(format!("Call option price too high ({option_price} > {asset_spot_price})")));
+                return Err(TSError::new(
+                    UnsolveableError,
+                    format!("Call option price too high ({option_price} > {asset_spot_price})"),
+                ));
             }
         }
         OptionType::Put => {
             if option_price < strike_value_now - asset_spot_price {
-                return Err(UnsolveableError::new(format!(
-                    "Put option price mathematically impossibly low ({option_price} < {strike_value_now} - {asset_spot_price}) (Is the data stale?)"
-                )));
+                return Err(TSError::new(
+                    UnsolveableError,
+                    format!(
+                        "Put option price mathematically impossibly low ({option_price} < {strike_value_now} - {asset_spot_price}) (Is the data stale?)"
+                    ),
+                ));
             }
             if option_price > strike_value_now {
-                return Err(UnsolveableError::new(format!("Put option price too high ({option_price} > {strike_value_now})")));
+                return Err(TSError::new(
+                    UnsolveableError,
+                    format!("Put option price too high ({option_price} > {strike_value_now})"),
+                ));
             }
         }
     };
@@ -86,7 +99,7 @@ pub fn calculate_bs_implied_volatility(
 
         // Not sure if this could ever happen, but just in case.
         if iterations > 64 {
-            return Err(UnsolveableError::new("Too many iterations when finding bounds"));
+            return Err(TSError::new(UnsolveableError, "Too many iterations when finding bounds"));
         }
     }
 
@@ -210,9 +223,9 @@ pub fn calculate_black_scholes(
     risk_free_interest_rate: f64,
     volatility: f64,
     option_type: OptionType,
-) -> Result<f64, UnsolveableError> {
+) -> Result<f64, TSError> {
     if years_until_expiry <= 0.0 {
-        return Err(UnsolveableError::new("Option has already expired"));
+        return Err(TSError::new(UnsolveableError, "Option has already expired"));
     }
 
     assert!(asset_spot_price > 0.0);
@@ -270,7 +283,7 @@ pub fn has_butterfly_arbitrage(
     to_strike: u64,
     forward_price: f64,
     resolution: u64,
-) -> Result<bool, UnsolveableError> {
+) -> Result<bool, TSError> {
     assert!(resolution > 0);
 
     let range = to_strike - from_strike;
@@ -309,7 +322,7 @@ pub fn has_butterfly_arbitrage(
 /// Calculate total variance using the stochastic volatility inspired model equation, which produces a smile shape.
 /// There are other shapes you can use, some of which guarantee no arbitrage, but we'll stick with this for now
 /// as it's widely used.
-pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f64) -> Result<f64, UnsolveableError> {
+pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f64) -> Result<f64, TSError> {
     let a = svi_curve_parameters.get_a();
     let b = svi_curve_parameters.get_b();
     let p = svi_curve_parameters.get_p();
@@ -320,9 +333,10 @@ pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f6
 
     // Do this even if constants::VALIDATE_SVI is false, because this will probably mess with the error function.
     if result < 0.0001 {
-        return Err(UnsolveableError::new(format!(
-            "SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"
-        )));
+        return Err(TSError::new(
+            UnsolveableError,
+            format!("SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"),
+        ));
     }
 
     Ok(result)

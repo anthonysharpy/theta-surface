@@ -1,27 +1,24 @@
-/// A calculation was unsolveable.
 #[derive(Clone, PartialEq, Debug)]
-pub struct UnsolveableError {
+pub struct TSError {
     pub reason: String,
+    pub error_type: TSErrorType,
 }
 
-impl UnsolveableError {
-    pub fn new(unsolveable_reason: impl Into<String>) -> Self {
+impl TSError {
+    pub fn new(error_type: TSErrorType, reason: impl Into<String>) -> Self {
         Self {
-            reason: unsolveable_reason.into(),
+            reason: reason.into(),
+            error_type: error_type,
         }
     }
 }
 
-/// API data was unusable.
 #[derive(Clone, PartialEq, Debug)]
-pub struct UnusableAPIDataError {
-    pub reason: String,
-}
-
-impl UnusableAPIDataError {
-    pub fn new(unusable_reason: impl Into<String>) -> Self {
-        Self {
-            reason: unusable_reason.into(),
-        }
-    }
+pub enum TSErrorType {
+    /// API data was unusable.
+    UnusableAPIData,
+    /// Something unexpected happened.
+    RuntimeError,
+    /// The maths were unsolveable.
+    UnsolveableError,
 }

@@ -3,7 +3,8 @@ use rust_decimal::prelude::ToPrimitive;
 
 use crate::{
     analytics::{OptionInstrument, OptionType},
-    types::UnusableAPIDataError,
+    types::TSError,
+    types::TSErrorType::UnusableAPIData,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -87,14 +88,14 @@ pub struct DeribitOptionInstrument {
 }
 
 impl DeribitOptionInstrument {
-    pub fn to_option(&self) -> Result<OptionInstrument, UnusableAPIDataError> {
+    pub fn to_option(&self) -> Result<OptionInstrument, TSError> {
         let ticker_data = self.ticker_data.as_ref().unwrap();
         let index_price = ticker_data.index_price.to_f64().unwrap();
 
         let price = match self.quote_currency.as_ref() {
             "USD" => ticker_data.mark_price.to_f64().unwrap(),
             "BTC" => ticker_data.mark_price.to_f64().unwrap() * index_price,
-            other => return Err(UnusableAPIDataError::new(format!("Unknown currency {other}"))),
+            other => return Err(TSError::new(UnusableAPIData, format!("Unknown currency {other}"))),
         };
 
         Ok(OptionInstrument::new(

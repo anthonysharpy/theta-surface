@@ -1,4 +1,4 @@
 mod errors;
 
-pub use errors::UnsolveableError;
-pub use errors::UnusableAPIDataError;
+pub use errors::TSError;
+pub use errors::TSErrorType;
