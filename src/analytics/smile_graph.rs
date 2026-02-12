@@ -130,10 +130,9 @@ impl SmileGraph {
             return Err(TSError::new(UnsolveableError, format!("No mathematically valid curve found")));
         }
 
-        let curve = match result.curve {
-            None => return Err(TSError::new(RuntimeError, format!("No curve was produced"))),
-            Some(c) => c,
-        };
+        let curve = result
+            .curve
+            .ok_or(TSError::new(RuntimeError, format!("No curve was produced")))?;
 
         Ok((curve, report.objective_function.abs()))
     }
@@ -233,8 +232,6 @@ impl SmileGraph {
                     while o <= o_end {
                         o_patience_scale *= constants::SVI_FITTING_IMPATIENCE;
                         let new_params = SVICurveParameters::new_from_values(0.0, b, p, m, o);
-
-                        if new_params.is_err() {}
 
                         let result = match new_params {
                             Err(_) => {

@@ -26,13 +26,10 @@ pub fn load_struct_from_file<T: DeserializeOwned>(path: &str) -> Result<T, TSErr
 
 /// Delete all files in the given directory except files whose name contains ignore_filter.
 pub fn clear_directory(path: &str, ignore_filter: &str) -> Result<(), TSError> {
-    let files = fs::read_dir(path).map_err(|e| TSError::new(RuntimeError, format!("Coulnd't read directory {}: {}", path, e)))?;
+    let files = fs::read_dir(path).map_err(|e| TSError::new(RuntimeError, format!("Coulnd't read directory {path}: {e}")))?;
 
     for file in files {
-        let file_info = match file {
-            Ok(v) => v,
-            Err(e) => return Err(TSError::new(RuntimeError, format!("File reference was invalid: {:?}", e))),
-        };
+        let file_info = file.map_err(|e| TSError::new(RuntimeError, format!("File reference was invalid: {e}")))?;
         let path = file_info.path();
         let path_name = path.display();
         let raw_file_name = file_info.file_name();
@@ -45,7 +42,7 @@ pub fn clear_directory(path: &str, ignore_filter: &str) -> Result<(), TSError> {
         }
 
         fs::remove_file(file_info.path())
-            .map_err(|e| TSError::new(RuntimeError, format!("Failed to delete file at path {}: {}", path_name, e)))?;
+            .map_err(|e| TSError::new(RuntimeError, format!("Failed to delete file at path {path_name}: {e}")))?;
     }
 
     Ok(())

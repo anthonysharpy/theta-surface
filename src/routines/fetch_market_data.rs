@@ -31,7 +31,7 @@ async fn download_options() -> Result<Vec<DeribitOptionInstrument>, TSError> {
         "https://www.deribit.com/api/v2/public/get_instruments?currency=BTC&kind=option&expired=false",
     )
     .await
-    .map_err(|e| TSError::new(RuntimeError, format!("Failed downloading options:: {}", e)))?;
+    .map_err(|e| TSError::new(RuntimeError, format!("Failed downloading options: {:?}", e)))?;
 
     let mut i: usize = 0;
 

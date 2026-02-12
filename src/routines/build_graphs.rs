@@ -35,7 +35,7 @@ pub fn build_graphs() {
 
     for graph in graphs_data.smile_graphs {
         let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility_1) =
-            build_graph_lines(&graph, 400);
+            build_graph_lines(&graph, 400).unwrap_or_else(|e| panic!("Failed building graph lines: {}", e.reason));
 
         let (option_points, highest_implied_volatility_2) = match build_graph_points(&graph) {
             Ok(v) => v,
@@ -115,7 +115,10 @@ fn build_graph_points(smile_graph: &SmileGraph) -> Result<(Vec<OptionGraphPoint>
 ///
 /// * `graph` - The smile graph object.
 /// * `number_of_points` - The number of discrete points the graph should have. Higher values will result in a smoother graph.
-fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64) {
+fn build_graph_lines(
+    graph: &SmileGraph,
+    number_of_points: u64,
+) -> Result<(Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64), TSError> {
     assert!(number_of_points.is_multiple_of(4));
 
     let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();
@@ -139,10 +142,12 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
             continue;
         }
 
-        let implied_volatility = match graph.get_implied_volatility_at_strike(x) {
-            Ok(v) => v,
-            Err(e) => panic!("Calculating implied volatility in first quarter of graph failed: {}", e.reason),
-        };
+        let implied_volatility = graph.get_implied_volatility_at_strike(x).map_err(|e| {
+            TSError::new(
+                RuntimeError,
+                format!("Calculating implied volatility in first quarter of graph failed: {}", e.reason),
+            )
+        })?;
 
         if implied_volatility > highest_implied_volatility {
             highest_implied_volatility = implied_volatility;
@@ -164,10 +169,9 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
             continue;
         }
 
-        let implied_volatility = match graph.get_implied_volatility_at_strike(x) {
-            Ok(v) => v,
-            Err(e) => panic!("Calculating implied volatility in middle of graph failed: {}", e.reason),
-        };
+        let implied_volatility = graph.get_implied_volatility_at_strike(x).map_err(|e| {
+            TSError::new(RuntimeError, format!("Calculating implied volatility in middle of graph failed: {}", e.reason))
+        })?;
 
         if implied_volatility > highest_implied_volatility {
             highest_implied_volatility = implied_volatility;
@@ -189,10 +193,12 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
             continue;
         }
 
-        let implied_volatility = match graph.get_implied_volatility_at_strike(x) {
-            Ok(v) => v,
-            Err(e) => panic!("Calculating implied volatility in last quarter of graph failed: {}", e.reason),
-        };
+        let implied_volatility = graph.get_implied_volatility_at_strike(x).map_err(|e| {
+            TSError::new(
+                RuntimeError,
+                format!("Calculating implied volatility in last quarter of graph failed: {}", e.reason),
+            )
+        })?;
 
         if implied_volatility > highest_implied_volatility {
             highest_implied_volatility = implied_volatility;
@@ -201,7 +207,7 @@ fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> (Vec<(f64, f6
         last_quarter_points.push((x, implied_volatility));
     }
 
-    (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility)
+    Ok((first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility))
 }
 
 fn delete_existing_graphs() {
