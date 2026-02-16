@@ -54,9 +54,8 @@ impl OptionInstrument {
     }
 
     pub fn get_implied_volatility(&self) -> Result<f64, TSError> {
-        match self.implied_volatility.get() {
-            Some(iv) => return Ok(iv),
-            None => {}
+        if let Some(iv) = self.implied_volatility.get() {
+            return Ok(iv);
         };
 
         let implied_volatility = math::calculate_bs_implied_volatility(
@@ -79,10 +78,9 @@ impl OptionInstrument {
     }
 
     pub fn get_total_implied_variance(&self) -> Result<f64, TSError> {
-        match self.total_implied_variance.get() {
-            Some(tiv) => return Ok(tiv),
-            None => {}
-        };
+        if let Some(tiv) = self.total_implied_variance.get() {
+            return Ok(tiv);
+        }
 
         let implied_volatility = self.get_implied_volatility()?;
         let total_implied_variance = implied_volatility.powf(2.0) * self.get_years_until_expiry()?;
