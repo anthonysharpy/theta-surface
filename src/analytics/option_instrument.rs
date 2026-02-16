@@ -33,12 +33,12 @@ impl OptionInstrument {
         spot_price: f64,
     ) -> Self {
         Self {
-            price: price,
-            expiry_seconds: expiry_seconds,
-            strike: strike,
-            instrument_id: instrument_id,
-            option_type: option_type,
-            spot_price: spot_price,
+            expiry_seconds,
+            strike,
+            price,
+            instrument_id,
+            option_type,
+            spot_price,
             implied_volatility: Cell::new(None),
             total_implied_variance: Cell::new(None),
         }

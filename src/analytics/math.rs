@@ -2,7 +2,6 @@ use crate::analytics::OptionType;
 use crate::analytics::types::SVICurveParameters;
 use crate::constants;
 use crate::helpers::error_unless_positive_f64;
-use crate::helpers::error_unless_positive_u64;
 use crate::helpers::error_unless_valid_f64;
 use crate::types::TSError;
 use crate::types::TSErrorType::UnsolvableError;
@@ -323,10 +322,7 @@ pub fn has_butterfly_arbitrage(
     forward_price: f64,
     resolution: u64,
 ) -> Result<bool, TSError> {
-    error_unless_positive_u64(from_strike, "from_strike")?;
-    error_unless_positive_u64(to_strike, "to_strike")?;
     error_unless_positive_f64(forward_price, "forward_price")?;
-    error_unless_positive_u64(resolution, "resolution")?;
 
     let range = to_strike - from_strike;
     let step_size = range as f64 / resolution as f64;

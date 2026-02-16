@@ -412,7 +412,7 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             for option in &self.smile_graph.options {
                 let residual = calculate_least_squares_residual(
                     svi_params.as_ref().unwrap(),
-                    &option,
+                    option,
                     self.smile_graph
                         .get_underlying_forward_price()
                         .expect("Graph forward price must be valid"),
@@ -467,7 +467,7 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             for option in &self.smile_graph.options {
                 let still_valid = calculate_least_squares_residual(
                     self.curve.as_ref().unwrap(),
-                    &option,
+                    option,
                     self.smile_graph
                         .get_underlying_forward_price()
                         .expect("Graph forward price must be valid"),
@@ -564,10 +564,10 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             i += 4;
         }
 
-        mean_b = mean_b / self.smile_graph.options.len() as f64;
-        mean_p = mean_p / self.smile_graph.options.len() as f64;
-        mean_m = mean_m / self.smile_graph.options.len() as f64;
-        mean_o = mean_o / self.smile_graph.options.len() as f64;
+        mean_b /= self.smile_graph.options.len() as f64;
+        mean_p /= self.smile_graph.options.len() as f64;
+        mean_m /= self.smile_graph.options.len() as f64;
+        mean_o /= self.smile_graph.options.len() as f64;
 
         i = 0;
 

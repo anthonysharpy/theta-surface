@@ -291,19 +291,19 @@ fn create_graph(
 
     // Curve lines.
     chart
-        .draw_series(LineSeries::new(extrapolated_first_quarter_points, &GREY))
+        .draw_series(LineSeries::new(extrapolated_first_quarter_points, GREY))
         .map_err(|e| TSError::new(RuntimeError, format!("Drawing curve first quarter failed: {}", e)))?
         .label("Extrapolated data")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREY));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREY));
 
     chart
-        .draw_series(LineSeries::new(observed_data_points, &RED))
+        .draw_series(LineSeries::new(observed_data_points, RED))
         .map_err(|e| TSError::new(RuntimeError, format!("Drawing curve middle failed: {}", e)))?
         .label("Observed data")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
 
     chart
-        .draw_series(LineSeries::new(extrapolated_last_quarter_points, &GREY))
+        .draw_series(LineSeries::new(extrapolated_last_quarter_points, GREY))
         .map_err(|e| TSError::new(RuntimeError, format!("Drawing curve last quarter failed: {}", e)))?;
 
     // Forward price line.
@@ -345,8 +345,8 @@ fn create_graph(
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()
         .map_err(|e| TSError::new(RuntimeError, format!("Drawing series label failed: {}", e)))?;
 

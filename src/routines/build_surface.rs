@@ -1,9 +1,9 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use crate::analytics::{OptionInstrument, SmileGraph, SmileGraphsDataContainer};
 use crate::integrations::DeribitDataContainer;
 use crate::types::TSError;
-use crate::types::TSErrorType::RuntimeError;
 use crate::{constants, fileio};
 
 pub fn build_surface() {
@@ -90,17 +90,16 @@ fn group_options_by_expiry(options: Vec<OptionInstrument>) -> Result<HashMap<i64
     for option in options {
         let expiration = option.get_expiration()?.timestamp_millis();
 
-        if grouped_options.contains_key(&expiration) {
-            grouped_options
-                .get_mut(&expiration)
-                .ok_or(TSError::new(RuntimeError, "Failed getting grouped_options mutator"))?
-                .push(option);
-        } else {
-            let formatted_expiration = option.get_expiration()?.to_rfc3339();
-            println!("Found a new expiry {expiration} (i.e. {formatted_expiration})...");
-            let mut new_vector: Vec<OptionInstrument> = Vec::new();
-            new_vector.push(option);
-            grouped_options.insert(expiration, new_vector);
+        match grouped_options.entry(expiration) {
+            Entry::Vacant(entry) => {
+                let formatted_expiration = option.get_expiration()?.to_rfc3339();
+                println!("Found a new expiry {expiration} (i.e. {formatted_expiration})...");
+                let new_vector: Vec<OptionInstrument> = vec![option];
+                entry.insert(new_vector);
+            }
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().push(option);
+            }
         }
     }
 
@@ -138,7 +137,7 @@ fn build_smile_graphs(grouped_options: HashMap<i64, Vec<OptionInstrument>>) -> V
     smiles
 }
 
-fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) -> Result<(), TSError> {
+fn fit_smile_graphs(smile_graphs: &mut [SmileGraph]) -> Result<(), TSError> {
     println!("Fitting smile graphs...");
 
     let mut succeeded_smiles = 0;
@@ -146,7 +145,7 @@ fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) -> Result<(), TSError> {
 
     for graph in smile_graphs.iter_mut() {
         let current_smile = succeeded_smiles + failed_smiles + 1;
-        println!("");
+        println!();
         println!("Fitting smile {current_smile} ({})...", graph.get_expiration()?.to_rfc3339());
         println!("=====================================");
 

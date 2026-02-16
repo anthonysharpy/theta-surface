@@ -18,10 +18,7 @@ pub fn load_struct_from_file<T: DeserializeOwned>(path: &str) -> Result<T, TSErr
     let data = fs::read_to_string(path)
         .map_err(|e| TSError::new(RuntimeError, format!("Failed reading file at path {}: {}", path, e)))?;
 
-    Ok(
-        serde_json::from_str::<T>(&data)
-            .map_err(|e| TSError::new(RuntimeError, format!("Failed deserialising object: {}", e)))?,
-    )
+    serde_json::from_str::<T>(&data).map_err(|e| TSError::new(RuntimeError, format!("Failed deserialising object: {}", e)))
 }
 
 /// Delete all files in the given directory except files whose name contains ignore_filter.

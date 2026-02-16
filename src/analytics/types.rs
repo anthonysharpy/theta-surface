@@ -27,13 +27,7 @@ impl SVICurveParameters {
     }
 
     pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> Result<SVICurveParameters, TSError> {
-        let params: SVICurveParameters = SVICurveParameters {
-            a: a,
-            b: b,
-            p: p,
-            m: m,
-            o: o,
-        };
+        let params: SVICurveParameters = SVICurveParameters { a, b, p, m, o };
 
         Self::check_valid(&params)?;
 
