@@ -27,6 +27,12 @@ pub fn calculate_bs_implied_volatility(
     option_price: f64,
     option_type: OptionType,
 ) -> Result<f64, TSError> {
+    error_unless_positive_f64(asset_spot_price, "asset_spot_price")?;
+    error_unless_positive_f64(strike_price, "strike_price")?;
+    error_unless_positive_f64(years_until_expiry, "years_until_expiry")?;
+    error_unless_valid_f64(risk_free_interest_rate, "risk_free_interest_rate")?;
+    error_unless_positive_f64(option_price, "option_price")?;
+
     // We'll use a simple bracketed solver to do this. Basically, we're gonna keep guessing until we get it right.
     // There are faster methods, like using the Newton method etc, but this is fine for now. Newton also doesn't work
     // well in some situations.
@@ -186,7 +192,13 @@ pub fn black_scholes_d1(
     risk_free_interest_rate: f64,
     volatility: f64,
     years_until_expiry: f64,
-) -> f64 {
+) -> Result<f64, TSError> {
+    error_unless_positive_f64(asset_spot_price, "asset_spot_price")?;
+    error_unless_positive_f64(strike_price, "strike_price")?;
+    error_unless_positive_f64(volatility, "volatility")?;
+    error_unless_valid_f64(risk_free_interest_rate, "risk_free_interest_rate")?;
+    error_unless_positive_f64(years_until_expiry, "years_until_expiry")?;
+
     // Uncertainty increases with time and volatility.
     let uncertainty = volatility * years_until_expiry.sqrt();
 
@@ -199,7 +211,7 @@ pub fn black_scholes_d1(
     // doing some logarithm-based math magic.
     d1 += (risk_free_interest_rate + (0.5 * volatility.powf(2.0))) * years_until_expiry;
     // The greater the uncertainty, the less the distance from the strike matters.
-    d1 / uncertainty
+    Ok(d1 / uncertainty)
 }
 
 /// d2 represents how likely the option is to finish in-the-money in standard deviation units.
@@ -209,11 +221,15 @@ pub fn black_scholes_d1(
 /// * `d1` - The Black-Scholes d1 value (see black_scholes_d1()).
 /// * `years_until_expiry` - Years until the option expires (365 day year).
 /// * `volatility` - Annualised standard deviation of the underlying log returns. Must use a 365 day year.
-pub fn black_scholes_d2(d1: f64, volatility: f64, years_until_expiry: f64) -> f64 {
+pub fn black_scholes_d2(d1: f64, volatility: f64, years_until_expiry: f64) -> Result<f64, TSError> {
+    error_unless_positive_f64(volatility, "volatility")?;
+    error_unless_positive_f64(years_until_expiry, "years_until_expiry")?;
+    error_unless_valid_f64(d1, "d1")?;
+
     // Uncertainty increases with time and volatility.
     let uncertainty = volatility * years_until_expiry.sqrt();
 
-    d1 - uncertainty
+    Ok(d1 - uncertainty)
 }
 
 /// Calculate the Black-Scholes price given the provided parameters. Assumes no dividends.
@@ -235,16 +251,14 @@ pub fn calculate_black_scholes(
     volatility: f64,
     option_type: OptionType,
 ) -> Result<f64, TSError> {
-    if years_until_expiry <= 0.0 {
-        return Err(TSError::new(UnsolveableError, "Option has already expired"));
-    }
+    error_unless_positive_f64(asset_spot_price, "asset_spot_price")?;
+    error_unless_positive_f64(strike_price, "strike_price")?;
+    error_unless_positive_f64(years_until_expiry, "years_until_expiry")?;
+    error_unless_valid_f64(risk_free_interest_rate, "risk_free_interest_rate")?;
+    error_unless_positive_f64(volatility, "volatility")?;
 
-    assert!(asset_spot_price > 0.0);
-    assert!(strike_price > 0.0);
-    assert!(volatility >= 0.0);
-
-    let d1 = black_scholes_d1(asset_spot_price, strike_price, risk_free_interest_rate, volatility, years_until_expiry);
-    let d2 = black_scholes_d2(d1, volatility, years_until_expiry);
+    let d1 = black_scholes_d1(asset_spot_price, strike_price, risk_free_interest_rate, volatility, years_until_expiry)?;
+    let d2 = black_scholes_d2(d1, volatility, years_until_expiry)?;
 
     return match option_type {
         OptionType::Call => {
@@ -295,7 +309,10 @@ pub fn has_butterfly_arbitrage(
     forward_price: f64,
     resolution: u64,
 ) -> Result<bool, TSError> {
-    assert!(resolution > 0);
+    error_unless_positive_u64(from_strike, "from_strike")?;
+    error_unless_positive_u64(to_strike, "to_strike")?;
+    error_unless_positive_f64(forward_price, "forward_price")?;
+    error_unless_positive_u64(resolution, "resolution")?;
 
     let range = to_strike - from_strike;
     let step_size = range as f64 / resolution as f64;
@@ -334,6 +351,8 @@ pub fn has_butterfly_arbitrage(
 /// There are other shapes you can use, some of which guarantee no arbitrage, but we'll stick with this for now
 /// as it's widely used.
 pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f64) -> Result<f64, TSError> {
+    error_unless_valid_f64(log_moneyness, "log_moneyness")?;
+
     let a = svi_curve_parameters.get_a();
     let b = svi_curve_parameters.get_b();
     let p = svi_curve_parameters.get_p();

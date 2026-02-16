@@ -68,12 +68,9 @@ impl OptionInstrument {
             self.option_type,
         )
         .map_err(|e| {
-            let instrument_id = &self.instrument_id;
-            let err = e.reason;
-
             TSError::new(
                 UnsolveableError,
-                format!("Failed calculating implied volatility for instrument {instrument_id}: {err}"),
+                format!("Failed calculating implied volatility for instrument {}: {}", &self.instrument_id, e.reason),
             )
         })?;
 

@@ -8,10 +8,11 @@ use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U4, Vector4};
 use crate::{
     analytics::{self, OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
     constants,
-    helpers::F64Helpers,
-    types::TSError,
-    types::TSErrorType::RuntimeError,
-    types::TSErrorType::UnsolveableError,
+    helpers::{F64Helpers, error_unless_positive_f64},
+    types::{
+        TSError,
+        TSErrorType::{RuntimeError, UnsolveableError},
+    },
 };
 
 /// A smile graph representing the change in volatility as the strike price changes for a set of options, each having the same
@@ -50,6 +51,8 @@ impl SmileGraph {
     }
 
     pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, TSError> {
+        error_unless_positive_f64(strike, "strike")?;
+
         let log_moneyness = (strike / self.get_underlying_forward_price()?).ln();
         let implied_variance = analytics::svi_variance(&self.svi_curve_parameters, log_moneyness)?;
 
@@ -65,6 +68,10 @@ impl SmileGraph {
     }
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), TSError> {
+        if option.get_years_until_expiry()? <= 0.0 {
+            return Err(TSError::new(UnsolveableError, "Option already expired"));
+        }
+
         option
             .get_total_implied_variance()
             .map_err(|e| TSError::new(UnsolveableError, format!("Calculating total implied variance failed: {}", e.reason)))?;
