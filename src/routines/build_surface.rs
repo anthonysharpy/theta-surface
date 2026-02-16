@@ -147,7 +147,7 @@ fn fit_smile_graphs(smile_graphs: &mut Vec<SmileGraph>) -> Result<(), TSError> {
     for graph in smile_graphs.iter_mut() {
         let current_smile = succeeded_smiles + failed_smiles + 1;
         println!("");
-        println!("Fitting smile {current_smile} ({})...", graph.get_expiry()?.to_rfc3339());
+        println!("Fitting smile {current_smile} ({})...", graph.get_expiration()?.to_rfc3339());
         println!("=====================================");
 
         match graph.fit_smile() {

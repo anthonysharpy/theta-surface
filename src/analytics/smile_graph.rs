@@ -1,9 +1,8 @@
-use core::f64;
 use std::{cell::Cell, f64::consts::E};
 
 use chrono::{DateTime, Utc};
-use levenberg_marquardt::{self, LeastSquaresProblem, LevenbergMarquardt};
-use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U4, Vector4};
+use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
+use nalgebra::{Dyn, Matrix, Owned, U1, U4, Vector4};
 
 use crate::{
     analytics::{self, OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
@@ -20,7 +19,6 @@ use crate::{
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct SmileGraph {
     pub options: Vec<OptionInstrument>,
-    forward_price: Cell<Option<f64>>,
     pub highest_observed_strike: f64,
     pub lowest_observed_strike: f64,
     pub highest_observed_implied_volatility: f64,
@@ -28,6 +26,8 @@ pub struct SmileGraph {
 
     #[serde(skip)]
     pub has_been_fit: bool,
+    #[serde(skip)]
+    underlying_forward_price: Cell<Option<f64>>,
 }
 
 impl SmileGraph {
@@ -36,18 +36,34 @@ impl SmileGraph {
             options: Vec::new(),
             svi_curve_parameters: SVICurveParameters::new_empty(),
             has_been_fit: false,
-            forward_price: Cell::new(None),
+            underlying_forward_price: Cell::new(None),
             highest_observed_implied_volatility: f64::MIN,
             lowest_observed_strike: f64::MAX,
             highest_observed_strike: f64::MIN,
         }
     }
 
+    /// Internal helper for getting the first option in a way that doesn't panic.
+    fn get_first_option(&self) -> Result<&OptionInstrument, TSError> {
+        self.options
+            .first()
+            .ok_or(TSError::new(RuntimeError, "Smile graphs has no options, this should never happen"))
+    }
+
     /// Get the forward price that best represents all of the options. In reality, since we have normalised all the
     /// options to have the same spot price, it doesn't matter much how we calculate this. The only real guess here
     /// is the interest free rate.
     pub fn get_underlying_forward_price(&self) -> Result<f64, TSError> {
-        Ok(self.options[0].spot_price * E.powf(constants::INTEREST_FREE_RATE * self.options[0].get_years_until_expiry()?))
+        if let Some(price) = self.underlying_forward_price.get() {
+            return Ok(price);
+        };
+
+        let option = self.get_first_option()?;
+
+        let price = option.spot_price * E.powf(constants::INTEREST_FREE_RATE * option.get_years_until_expiry()?);
+
+        self.underlying_forward_price.set(Some(price));
+        Ok(price)
     }
 
     pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, TSError> {
@@ -60,11 +76,17 @@ impl SmileGraph {
     }
 
     pub fn get_years_until_expiry(&self) -> Result<f64, TSError> {
-        Ok(self.options[0].get_years_until_expiry()?)
+        Ok(self.get_first_option()?.get_years_until_expiry()?)
     }
 
-    pub fn get_expiry(&self) -> Result<DateTime<Utc>, TSError> {
-        Ok(self.options[0].get_expiration()?)
+    /// Returns true if the smile graph has no options.
+    fn is_empty(&self) -> bool {
+        self.options.len() <= 0
+    }
+
+    // Will return an error if there is no expiration.
+    pub fn get_expiration(&self) -> Result<DateTime<Utc>, TSError> {
+        Ok(self.get_first_option()?.get_expiration()?)
     }
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), TSError> {
@@ -87,8 +109,8 @@ impl SmileGraph {
     pub fn try_insert_option(&mut self, option: OptionInstrument) -> Result<(), TSError> {
         Self::check_option_valid(&option)?;
 
-        if self.options.len() > 0 && self.options[0].get_expiration() != option.get_expiration() {
-            panic!("Cannot mix options with different expiries");
+        if !self.is_empty() && self.get_expiration()? != option.get_expiration()? {
+            return Err(TSError::new(RuntimeError, "Cannot mix options with different expiries"));
         }
 
         if option.strike > self.highest_observed_strike {
@@ -136,7 +158,7 @@ impl SmileGraph {
         }
 
         if !result.curve_valid || result.has_arbitrage {
-            return Err(TSError::new(UnsolvableError, format!("No mathematically valid curve found")));
+            return Err(TSError::new(UnsolvableError, "No mathematically valid curve found"));
         }
 
         let curve = result
@@ -493,7 +515,7 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
     fn jacobian(&self) -> Option<Matrix<f64, Dyn, U4, Self::JacobianStorage>> {
         let [b, p, m, o] = [self.p.x, self.p.y, self.p.z, self.p.w];
 
-        type SVIJacobianMatrix = OMatrix<f64, Dyn, U4>;
+        type SVIJacobianMatrix = nalgebra::OMatrix<f64, Dyn, U4>;
         let mut jacobians: Vec<f64> = Vec::new();
 
         // Build the Jacobians matrix.

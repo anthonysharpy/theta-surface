@@ -61,7 +61,7 @@ pub fn build_graphs() {
             }
         };
 
-        let expiry = match graph.get_expiry() {
+        let expiry = match graph.get_expiration() {
             Err(e) => {
                 println!("Failed getting graph expiry: {}, skipping...", e.reason);
                 continue;
@@ -224,7 +224,7 @@ fn load_api_data() -> Result<SmileGraphsDataContainer, TSError> {
     let expiries = data
         .smile_graphs
         .iter()
-        .map(|x| x.get_expiry())
+        .map(|x| x.get_expiration())
         .collect::<Result<Vec<DateTime<Utc>>, TSError>>()?;
     let first_expiry = expiries
         .iter()
