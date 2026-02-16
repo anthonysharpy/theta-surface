@@ -29,3 +29,6 @@ pub const SVI_FITTING_IMPATIENCE: f64 = 1.4;
 /// When we find a new best error, we reset the impatience. But only if the new error was at least this percent better
 /// than the old one. Written as a decimal (0 - 1).
 pub const IMPATIENCE_IMPROVEMENT_REQUIREMENT: f64 = 0.005;
+
+/// When solving implied volatility, we will keep searching until it's this close.
+pub const IMPLIED_VOLATILITY_SOLVER_ACCURACY: f64 = 0.0001;

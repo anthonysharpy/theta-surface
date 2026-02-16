@@ -1,5 +1,9 @@
 use crate::analytics::OptionType;
 use crate::analytics::types::SVICurveParameters;
+use crate::constants;
+use crate::helpers::error_unless_positive_f64;
+use crate::helpers::error_unless_positive_u64;
+use crate::helpers::error_unless_valid_f64;
 use crate::types::TSError;
 use crate::types::TSErrorType::UnsolveableError;
 use std::f64::consts::E;
@@ -104,7 +108,6 @@ pub fn calculate_bs_implied_volatility(
     }
 
     // So now the correct implied volatility is between bounds_start and bounds_end. Let's narrow it down.
-    const MAXIMUM_RANGE: f64 = 0.0001;
     let mut bounds_end_bs: f64;
     let mut midpoint_bs: f64;
     let mut midpoint: f64;
@@ -114,7 +117,7 @@ pub fn calculate_bs_implied_volatility(
         range = bounds_end - bounds_start;
         midpoint = (bounds_end + bounds_start) * 0.5;
 
-        if range <= MAXIMUM_RANGE {
+        if range <= constants::IMPLIED_VOLATILITY_SOLVER_ACCURACY {
             // We're very close. Return the midpoint.
             return Ok(midpoint);
         }
