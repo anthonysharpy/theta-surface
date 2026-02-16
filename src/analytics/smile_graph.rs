@@ -11,7 +11,7 @@ use crate::{
     helpers::{F64Helpers, error_unless_positive_f64},
     types::{
         TSError,
-        TSErrorType::{RuntimeError, UnsolveableError},
+        TSErrorType::{RuntimeError, UnsolvableError},
     },
 };
 
@@ -69,16 +69,16 @@ impl SmileGraph {
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), TSError> {
         if option.get_years_until_expiry()? <= 0.0 {
-            return Err(TSError::new(UnsolveableError, "Option already expired"));
+            return Err(TSError::new(UnsolvableError, "Option already expired"));
         }
 
         option
             .get_total_implied_variance()
-            .map_err(|e| TSError::new(UnsolveableError, format!("Calculating total implied variance failed: {}", e.reason)))?;
+            .map_err(|e| TSError::new(UnsolvableError, format!("Calculating total implied variance failed: {}", e.reason)))?;
 
         option
             .get_implied_volatility()
-            .map_err(|e| TSError::new(UnsolveableError, format!("Calculating implied volatility failed: {}", e.reason)))?;
+            .map_err(|e| TSError::new(UnsolvableError, format!("Calculating implied volatility failed: {}", e.reason)))?;
 
         Ok(())
     }
@@ -130,13 +130,13 @@ impl SmileGraph {
 
         if !report.termination.was_successful() {
             return Err(TSError::new(
-                UnsolveableError,
+                UnsolvableError,
                 format!("Failed computing Levenberg-Marquardt: {:#?}", report.termination),
             ));
         }
 
         if !result.curve_valid || result.has_arbitrage {
-            return Err(TSError::new(UnsolveableError, format!("No mathematically valid curve found")));
+            return Err(TSError::new(UnsolvableError, format!("No mathematically valid curve found")));
         }
 
         let curve = result
@@ -305,7 +305,7 @@ impl SmileGraph {
         }
 
         self.svi_curve_parameters =
-            best_params.ok_or(TSError::new(UnsolveableError, "No graph could be fit! This is probably a bug!"))?;
+            best_params.ok_or(TSError::new(UnsolvableError, "No graph could be fit! This is probably a bug!"))?;
         self.has_been_fit = true;
 
         println!("Smile fit with error of {best_error}...");

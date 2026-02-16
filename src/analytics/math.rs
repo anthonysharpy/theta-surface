@@ -5,7 +5,7 @@ use crate::helpers::error_unless_positive_f64;
 use crate::helpers::error_unless_positive_u64;
 use crate::helpers::error_unless_valid_f64;
 use crate::types::TSError;
-use crate::types::TSErrorType::UnsolveableError;
+use crate::types::TSErrorType::UnsolvableError;
 use std::f64::consts::E;
 
 /// Calculate the Black-Scholes implied volatility of a dividendless option.
@@ -47,7 +47,7 @@ pub fn calculate_bs_implied_volatility(
         OptionType::Call => {
             if option_price < asset_spot_price - strike_value_now {
                 return Err(TSError::new(
-                    UnsolveableError,
+                    UnsolvableError,
                     format!(
                         "Call option price mathematically impossibly low ({option_price} < {asset_spot_price} - {strike_value_now}) (Is the data stale?)"
                     ),
@@ -55,7 +55,7 @@ pub fn calculate_bs_implied_volatility(
             }
             if option_price > asset_spot_price {
                 return Err(TSError::new(
-                    UnsolveableError,
+                    UnsolvableError,
                     format!("Call option price too high ({option_price} > {asset_spot_price})"),
                 ));
             }
@@ -63,7 +63,7 @@ pub fn calculate_bs_implied_volatility(
         OptionType::Put => {
             if option_price < strike_value_now - asset_spot_price {
                 return Err(TSError::new(
-                    UnsolveableError,
+                    UnsolvableError,
                     format!(
                         "Put option price mathematically impossibly low ({option_price} < {strike_value_now} - {asset_spot_price}) (Is the data stale?)"
                     ),
@@ -71,7 +71,7 @@ pub fn calculate_bs_implied_volatility(
             }
             if option_price > strike_value_now {
                 return Err(TSError::new(
-                    UnsolveableError,
+                    UnsolvableError,
                     format!("Put option price too high ({option_price} > {strike_value_now})"),
                 ));
             }
@@ -109,7 +109,7 @@ pub fn calculate_bs_implied_volatility(
 
         // Not sure if this could ever happen, but just in case.
         if iterations > 64 {
-            return Err(TSError::new(UnsolveableError, "Too many iterations when finding bounds"));
+            return Err(TSError::new(UnsolvableError, "Too many iterations when finding bounds"));
         }
     }
 
@@ -182,7 +182,7 @@ pub fn calculate_bs_implied_volatility(
 
         // To be safe.
         if iterations > 64 {
-            return Err(TSError::new(UnsolveableError, "Too many iterations when finding implied volatility"));
+            return Err(TSError::new(UnsolvableError, "Too many iterations when finding implied volatility"));
         }
     }
 }
@@ -378,7 +378,7 @@ pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f6
     // Do this even if constants::VALIDATE_SVI is false, because this will probably mess with the error function.
     if result < 0.0001 {
         return Err(TSError::new(
-            UnsolveableError,
+            UnsolvableError,
             format!("SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"),
         ));
     }

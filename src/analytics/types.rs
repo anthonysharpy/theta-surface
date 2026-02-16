@@ -1,4 +1,4 @@
-use crate::{analytics::SmileGraph, constants, types::TSError, types::TSErrorType::UnsolveableError};
+use crate::{analytics::SmileGraph, constants, types::TSError, types::TSErrorType::UnsolvableError};
 
 // The parameters that define the SVI smile curve function
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -63,21 +63,21 @@ impl SVICurveParameters {
     /// Assert that the maths is correct.
     pub fn check_valid(params: &SVICurveParameters) -> Result<(), TSError> {
         if params.b < 0.0 {
-            return Err(TSError::new(UnsolveableError, format!("b cannot be less than zero ({})", params.b)));
+            return Err(TSError::new(UnsolvableError, format!("b cannot be less than zero ({})", params.b)));
         }
         if params.p < -1.0 {
-            return Err(TSError::new(UnsolveableError, "p must be greater than -1"));
+            return Err(TSError::new(UnsolvableError, "p must be greater than -1"));
         }
         if params.p >= 1.0 {
-            return Err(TSError::new(UnsolveableError, "p must be smaller than 1"));
+            return Err(TSError::new(UnsolvableError, "p must be smaller than 1"));
         }
         if params.o <= 0.0 {
-            return Err(TSError::new(UnsolveableError, "o must be greater than 0"));
+            return Err(TSError::new(UnsolvableError, "o must be greater than 0"));
         }
 
         // Assert non-negative variance.
         if params.a + (params.b * params.o * (1.0 - params.p.powf(2.0)).sqrt()) <= 0.0 {
-            return Err(TSError::new(UnsolveableError, "Variance must be greater than 0"));
+            return Err(TSError::new(UnsolvableError, "Variance must be greater than 0"));
         }
 
         // Always check for the above even if this is disabled, because values outside those bounds will cause
@@ -88,16 +88,16 @@ impl SVICurveParameters {
 
         // Assert Lee's moment formula consistent.
         if params.b * (1.0 + params.p) <= 0.0 {
-            return Err(TSError::new(UnsolveableError, "Asymptotic slope of total variance must be greater than 0 (a)"));
+            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be greater than 0 (a)"));
         }
         if params.b * (1.0 + params.p) >= 2.0 {
-            return Err(TSError::new(UnsolveableError, "Asymptotic slope of total variance must be less than 2 (a)"));
+            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be less than 2 (a)"));
         }
         if params.b * (1.0 - params.p) <= 0.0 {
-            return Err(TSError::new(UnsolveableError, "Asymptotic slope of total variance must be greater than 0 (b)"));
+            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be greater than 0 (b)"));
         }
         if params.b * (1.0 - params.p) >= 2.0 {
-            return Err(TSError::new(UnsolveableError, "Asymptotic slope of total variance must be less than 2 (b)"));
+            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be less than 2 (b)"));
         }
 
         Ok(())

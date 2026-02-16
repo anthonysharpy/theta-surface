@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use crate::{
     analytics::{OptionType, math},
     constants, helpers,
-    types::{TSError, TSErrorType::RuntimeError, TSErrorType::UnsolveableError},
+    types::{TSError, TSErrorType::RuntimeError, TSErrorType::UnsolvableError},
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -69,7 +69,7 @@ impl OptionInstrument {
         )
         .map_err(|e| {
             TSError::new(
-                UnsolveableError,
+                UnsolvableError,
                 format!("Failed calculating implied volatility for instrument {}: {}", &self.instrument_id, e.reason),
             )
         })?;

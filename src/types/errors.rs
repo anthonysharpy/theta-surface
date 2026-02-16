@@ -20,5 +20,5 @@ pub enum TSErrorType {
     /// Something unexpected happened.
     RuntimeError,
     /// The maths were unsolveable.
-    UnsolveableError,
+    UnsolvableError,
 }
