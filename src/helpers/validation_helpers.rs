@@ -12,9 +12,8 @@ pub fn error_unless_positive_u64(val: u64, message: &str) -> Result<(), TSError>
 }
 
 pub fn error_unless_positive_f64(val: f64, message: &str) -> Result<(), TSError> {
-    if val.is_nan() {
-        return Err(TSError::new(RuntimeError, format!("{} (must be valid f64, found NaN)", message)));
-    }
+    error_unless_valid_f64(val, message)?;
+
     if val <= 0.0 {
         return Err(TSError::new(RuntimeError, format!("{} (must be > 0, found {})", message, val)));
     }
@@ -25,6 +24,9 @@ pub fn error_unless_positive_f64(val: f64, message: &str) -> Result<(), TSError>
 pub fn error_unless_valid_f64(val: f64, message: &str) -> Result<(), TSError> {
     if val.is_nan() {
         return Err(TSError::new(RuntimeError, format!("{} (must be valid f64, found NaN)", message)));
+    }
+    if val.is_infinite() {
+        return Err(TSError::new(RuntimeError, format!("{} (must be valid f64, found Inf)", message)));
     }
 
     Ok(())
