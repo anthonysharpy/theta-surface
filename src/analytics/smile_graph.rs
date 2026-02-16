@@ -76,17 +76,17 @@ impl SmileGraph {
     }
 
     pub fn get_years_until_expiry(&self) -> Result<f64, TSError> {
-        Ok(self.get_first_option()?.get_years_until_expiry()?)
+        self.get_first_option()?.get_years_until_expiry()
     }
 
     /// Returns true if the smile graph has no options.
     fn is_empty(&self) -> bool {
-        self.options.len() <= 0
+        self.options.len() == 0
     }
 
     // Will return an error if there is no expiration.
     pub fn get_expiration(&self) -> Result<DateTime<Utc>, TSError> {
-        Ok(self.get_first_option()?.get_expiration()?)
+        self.get_first_option()?.get_expiration()
     }
 
     fn check_option_valid(option: &OptionInstrument) -> Result<(), TSError> {
@@ -163,7 +163,7 @@ impl SmileGraph {
 
         let curve = result
             .curve
-            .ok_or(TSError::new(RuntimeError, format!("No curve was produced")))?;
+            .ok_or(TSError::new(RuntimeError, "No curve was produced"))?;
 
         Ok((curve, report.objective_function.abs()))
     }
@@ -406,12 +406,12 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
 
         let mut total_residuals = 0.0;
 
-        if svi_params.is_ok() {
+        if let Ok(params) = &svi_params {
             // We're going to average the residuals and then use this to manually calculate the best value for a. This is much
             // more efficient and accurate. a is just a vertical offset, so this is simple to do.
             for option in &self.smile_graph.options {
                 let residual = calculate_least_squares_residual(
-                    svi_params.as_ref().unwrap(),
+                    params,
                     option,
                     self.smile_graph
                         .get_underlying_forward_price()
@@ -451,11 +451,11 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
                 150,
             );
 
-            if butterfly_arbitrage_found.is_err() {
+            if let Ok(has_arbitrage) = butterfly_arbitrage_found {
+                self.has_arbitrage = has_arbitrage;
+            } else {
                 self.curve_valid = false;
                 self.curve = None;
-            } else {
-                self.has_arbitrage = butterfly_arbitrage_found.unwrap();
             }
 
             // We should also be checking for calendar arbitrage, but since this software just handles discrete expiry slices,

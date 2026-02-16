@@ -8,7 +8,7 @@ impl TSError {
     pub fn new(error_type: TSErrorType, reason: impl Into<String>) -> Self {
         Self {
             reason: reason.into(),
-            error_type: error_type,
+            error_type,
         }
     }
 }

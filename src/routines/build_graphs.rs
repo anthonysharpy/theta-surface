@@ -11,6 +11,8 @@ use crate::types::TSError;
 use crate::types::TSErrorType::RuntimeError;
 use plotters::prelude::*;
 
+type GraphLinesData = (Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64);
+
 /// A point on the graph representing data from one option.
 struct OptionGraphPoint {
     strike: f64,
@@ -115,10 +117,7 @@ fn build_graph_points(smile_graph: &SmileGraph) -> Result<(Vec<OptionGraphPoint>
 ///
 /// * `graph` - The smile graph object.
 /// * `number_of_points` - The number of discrete points the graph should have. Higher values will result in a smoother graph.
-fn build_graph_lines(
-    graph: &SmileGraph,
-    number_of_points: u64,
-) -> Result<(Vec<(f64, f64)>, Vec<(f64, f64)>, Vec<(f64, f64)>, f64), TSError> {
+fn build_graph_lines(graph: &SmileGraph, number_of_points: u64) -> Result<GraphLinesData, TSError> {
     assert!(number_of_points.is_multiple_of(4));
 
     let mut first_quarter_points: Vec<(f64, f64)> = Vec::new();

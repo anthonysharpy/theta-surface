@@ -15,7 +15,7 @@ use std::f64::consts::E;
 /// * `strike_price` - The strike price of the option.
 /// * `years_until_expiry` - Years until the option expires (365 day year).
 /// * `risk_free_interest_rate` - The continuously-compounded risk-free interest rate from now until expiry. Annualised. For
-/// example, 5% per annum is 0.05. Must use a 365 day year.
+///   example, 5% per annum is 0.05. Must use a 365 day year.
 /// * `option_price` - Current price of the option.
 /// * `option_type` - The type of the option.
 pub fn calculate_bs_implied_volatility(
@@ -197,7 +197,7 @@ pub fn calculate_bs_implied_volatility(
 /// * `strike_price` - The strike price of the option.
 /// * `years_until_expiry` - Years until the option expires (365 day year).
 /// * `risk_free_interest_rate` - The continuously-compounded risk-free interest rate from now until expiry. Annualised. For
-/// example, 5% per annum is 0.05. Must use a 365 day year.
+///   example, 5% per annum is 0.05. Must use a 365 day year.
 /// * `volatility` - Annualised standard deviation of the underlying log returns. Must use a 365 day year.
 pub fn black_scholes_d1(
     asset_spot_price: f64,
@@ -253,7 +253,7 @@ pub fn black_scholes_d2(d1: f64, volatility: f64, years_until_expiry: f64) -> Re
 /// * `strike_price` - The strike price of the option.
 /// * `years_until_expiry` - Years until the option expires (365 day year).
 /// * `risk_free_interest_rate` - The continuously-compounded risk-free interest rate from now until expiry. Annualised. For
-/// example, 5% per annum is 0.05. Must use a 365 day year.
+///   example, 5% per annum is 0.05. Must use a 365 day year.
 /// * `volatility` - Annualised standard deviation of the underlying log returns. Must use a 365 day year.
 /// * `option_type` - The type of the option.
 pub fn calculate_black_scholes(

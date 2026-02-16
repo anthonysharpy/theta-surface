@@ -45,8 +45,8 @@ impl OptionInstrument {
     }
 
     pub fn get_expiration(&self) -> Result<DateTime<Utc>, TSError> {
-        Ok(DateTime::from_timestamp_secs(self.expiry_seconds as i64)
-            .ok_or(TSError::new(RuntimeError, "Failed creating timestamp from expiry_seconds"))?)
+        DateTime::from_timestamp_secs(self.expiry_seconds as i64)
+            .ok_or(TSError::new(RuntimeError, "Failed creating timestamp from expiry_seconds"))
     }
 
     pub fn get_years_until_expiry(&self) -> Result<f64, TSError> {

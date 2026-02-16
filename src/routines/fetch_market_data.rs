@@ -90,7 +90,7 @@ fn normalise_data(options: &mut Vec<DeribitOptionInstrument>) -> Result<(), TSEr
 fn save_data(options: Vec<DeribitOptionInstrument>) -> Result<(), TSError> {
     println!("Saving data to file...");
 
-    let data = DeribitDataContainer { options: options };
+    let data = DeribitDataContainer { options };
 
     fileio::save_struct_to_file(&data, "./data/deribit-btc-market-data.json")?;
 
