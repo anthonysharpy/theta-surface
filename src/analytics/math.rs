@@ -274,7 +274,7 @@ pub fn calculate_black_scholes(
     let d1 = black_scholes_d1(asset_spot_price, strike_price, risk_free_interest_rate, volatility, years_until_expiry)?;
     let d2 = black_scholes_d2(d1, volatility, years_until_expiry)?;
 
-    return match option_type {
+    match option_type {
         OptionType::Call => {
             // Probability the option finishes in the money.
             let in_money_probability = norm_cdf(d2);
@@ -303,7 +303,7 @@ pub fn calculate_black_scholes(
             let result = (strike_price * E.powf(-risk_free_interest_rate * years_until_expiry)) * in_money_probability;
             Ok(result - current_value)
         }
-    };
+    }
 }
 
 fn norm_cdf(x: f64) -> f64 {
