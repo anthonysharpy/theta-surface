@@ -120,24 +120,20 @@ pub fn calculate_bs_implied_volatility(
     let mut range: f64;
     iterations = 0;
 
+    range = bounds_end - bounds_start;
+    midpoint = (bounds_end + bounds_start) * 0.5;
+
+    // Calculate BS for the end bound.
+    bounds_end_bs = calculate_black_scholes(
+        asset_spot_price,
+        strike_price,
+        years_until_expiry,
+        risk_free_interest_rate,
+        bounds_end,
+        option_type,
+    )?;
+
     loop {
-        range = bounds_end - bounds_start;
-        midpoint = (bounds_end + bounds_start) * 0.5;
-
-        if range <= constants::IMPLIED_VOLATILITY_SOLVER_ACCURACY {
-            // We're very close. Return the midpoint.
-            return Ok(midpoint);
-        }
-
-        // Calculate BS for the end bound.
-        bounds_end_bs = calculate_black_scholes(
-            asset_spot_price,
-            strike_price,
-            years_until_expiry,
-            risk_free_interest_rate,
-            bounds_end,
-            option_type,
-        )?;
         // Calculate BS for the midpoint (halfway between the start and end bounds).
         midpoint_bs = calculate_black_scholes(
             asset_spot_price,
@@ -147,6 +143,11 @@ pub fn calculate_bs_implied_volatility(
             midpoint,
             option_type,
         )?;
+
+        if range <= constants::IMPLIED_VOLATILITY_SOLVER_ACCURACY {
+            // We're very close. Return the midpoint.
+            return Ok(midpoint);
+        }
 
         // Unlikely, but maybe we got it perfectly.
         if bounds_end_bs == option_price {
@@ -159,10 +160,23 @@ pub fn calculate_bs_implied_volatility(
         if midpoint_bs > option_price {
             // Midpoint was too high, so the answer is somewhere in the lower half.
             bounds_end = midpoint;
+
+            // Recalculate BS for the end bound.
+            bounds_end_bs = calculate_black_scholes(
+                asset_spot_price,
+                strike_price,
+                years_until_expiry,
+                risk_free_interest_rate,
+                bounds_end,
+                option_type,
+            )?;
         } else {
             // Midpoint was too low, so the answer is somewhere in the top half.
             bounds_start = midpoint;
         }
+
+        range = bounds_end - bounds_start;
+        midpoint = (bounds_end + bounds_start) * 0.5;
 
         iterations += 1;
 
