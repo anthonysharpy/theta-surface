@@ -112,6 +112,7 @@ pub fn calculate_bs_implied_volatility(
     let mut midpoint_bs: f64;
     let mut midpoint: f64;
     let mut range: f64;
+    iterations = 0;
 
     loop {
         range = bounds_end - bounds_start;
@@ -155,6 +156,13 @@ pub fn calculate_bs_implied_volatility(
         } else {
             // Midpoint was too low, so the answer is somewhere in the top half.
             bounds_start = midpoint;
+        }
+
+        iterations += 1;
+
+        // To be safe.
+        if iterations > 64 {
+            return Err(TSError::new(UnsolveableError, "Too many iterations when finding implied volatility"));
         }
     }
 }
