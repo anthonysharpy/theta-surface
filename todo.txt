@@ -3,6 +3,34 @@ black scholes explodes if volatility is 0
 
 fuzzing tests to test for crashes etc
 
-time until values are calculated inconsistently
+===== QUALITY CHECK ======
+math.rs x
+option_instrument.rs x
+smile_graph x
+types x
+filio
+formatting_helpers
+time_helpers
+deribit
+networkio
+build_graphs
+build_surface
+fetch_market_data
+help
+errors
+constants
+main
 
-make it so functions always go onto next line
+cargo clippy 
+
+
+
+should we remove this check?
+
+// Do this even if constants::VALIDATE_SVI is false, because this will probably mess with the error function.
+    if result < 0.0001 {
+        return Err(TSError::new(
+            UnsolvableError,
+            format!("SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"),
+        ));
+    }

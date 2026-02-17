@@ -83,7 +83,7 @@ impl OptionInstrument {
         }
 
         let implied_volatility = self.get_implied_volatility()?;
-        let total_implied_variance = implied_volatility.powf(2.0) * self.get_years_until_expiry()?;
+        let total_implied_variance = (implied_volatility * implied_volatility) * self.get_years_until_expiry()?;
 
         self.total_implied_variance
             .set(Some(total_implied_variance));

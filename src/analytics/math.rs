@@ -222,7 +222,7 @@ pub fn black_scholes_d1(
     let mut d1 = moneyness.ln();
     // Take into account the risk-change caused by the existence of the risk-free rate, whilst also
     // doing some logarithm-based math magic.
-    d1 += (risk_free_interest_rate + (0.5 * volatility.powf(2.0))) * years_until_expiry;
+    d1 += (risk_free_interest_rate + (0.5 * volatility * volatility)) * years_until_expiry;
     // The greater the uncertainty, the less the distance from the strike matters.
     Ok(d1 / uncertainty)
 }
@@ -337,12 +337,13 @@ pub fn has_butterfly_arbitrage(
         let o = curve_params.get_o();
         let p = curve_params.get_p();
         let svi_variance = svi_variance(curve_params, log_moneyness)?;
-        let svi_variance_deriv1 = b * (p + (x / (x.powf(2.0) + o.powf(2.0)).sqrt()));
-        let svi_variance_deriv2 = b * (o.powf(2.0) / ((x.powf(2.0) + o.powf(2.0)).powf(1.5)));
+        let svi_variance_deriv1 = b * (p + (x / ((x * x) + (o * o)).sqrt()));
+        let svi_variance_deriv2 = b * ((o * o) / (((x * x) + (o * o)).powf(1.5)));
 
-        let part1 = (1.0 - ((log_moneyness * svi_variance_deriv1) / (2.0 * svi_variance))).powf(2.0);
+        let mut part1 = 1.0 - ((log_moneyness * svi_variance_deriv1) / (2.0 * svi_variance));
+        part1 *= part1;
 
-        let mut part2 = svi_variance_deriv1.powf(2.0) / 4.0;
+        let mut part2 = (svi_variance_deriv1 * svi_variance_deriv1) / 4.0;
         part2 *= (1.0 / svi_variance) + 0.25;
 
         let part3 = svi_variance_deriv2 / 2.0;
@@ -369,7 +370,9 @@ pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f6
     let m = svi_curve_parameters.get_m();
     let o = svi_curve_parameters.get_o();
 
-    let result = a + b * ((p * (log_moneyness - m)) + ((log_moneyness - m).powf(2.0) + o.powf(2.0)).sqrt());
+    let adjusted_log_moneyness = log_moneyness - m;
+
+    let result = a + b * ((p * adjusted_log_moneyness) + ((adjusted_log_moneyness * adjusted_log_moneyness) + (o * o)).sqrt());
 
     // Do this even if constants::VALIDATE_SVI is false, because this will probably mess with the error function.
     if result < 0.0001 {

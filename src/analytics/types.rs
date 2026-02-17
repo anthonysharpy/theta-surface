@@ -1,4 +1,9 @@
-use crate::{analytics::SmileGraph, constants, types::TSError, types::TSErrorType::UnsolvableError};
+use crate::{
+    analytics::SmileGraph,
+    constants,
+    helpers::error_unless_valid_f64,
+    types::{TSError, TSErrorType::UnsolvableError},
+};
 
 // The parameters that define the SVI smile curve function
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -12,8 +17,8 @@ pub struct SVICurveParameters {
 
 impl SVICurveParameters {
     /// Create a new and empty instance (everything set to near 0).
-    pub fn new_empty() -> SVICurveParameters {
-        let params: SVICurveParameters = SVICurveParameters {
+    pub fn new_empty() -> Self {
+        let params = SVICurveParameters {
             a: 0.0001,
             b: 0.0002,
             p: 0.0001,
@@ -26,8 +31,8 @@ impl SVICurveParameters {
         params
     }
 
-    pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> Result<SVICurveParameters, TSError> {
-        let params: SVICurveParameters = SVICurveParameters { a, b, p, m, o };
+    pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> Result<Self, TSError> {
+        let params = SVICurveParameters { a, b, p, m, o };
 
         Self::check_valid(&params)?;
 
@@ -56,6 +61,12 @@ impl SVICurveParameters {
 
     /// Assert that the maths is correct.
     pub fn check_valid(params: &SVICurveParameters) -> Result<(), TSError> {
+        error_unless_valid_f64(params.b, "b")?;
+        error_unless_valid_f64(params.p, "p")?;
+        error_unless_valid_f64(params.o, "o")?;
+        error_unless_valid_f64(params.m, "m")?;
+        error_unless_valid_f64(params.a, "a")?;
+
         if params.b < 0.0 {
             return Err(TSError::new(UnsolvableError, format!("b cannot be less than zero ({})", params.b)));
         }
@@ -70,7 +81,7 @@ impl SVICurveParameters {
         }
 
         // Assert non-negative variance.
-        if params.a + (params.b * params.o * (1.0 - params.p.powf(2.0)).sqrt()) <= 0.0 {
+        if params.a + (params.b * params.o * (1.0 - (params.p * params.p)).sqrt()) <= 0.0 {
             return Err(TSError::new(UnsolvableError, "Variance must be greater than 0"));
         }
 
@@ -81,17 +92,29 @@ impl SVICurveParameters {
         }
 
         // Assert Lee's moment formula consistent.
-        if params.b * (1.0 + params.p) <= 0.0 {
-            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be greater than 0 (a)"));
+        let slope_plus = params.b * (1.0 + params.p);
+        let slope_minus = params.b * (1.0 - params.p);
+
+        if slope_plus <= 0.0 {
+            return Err(TSError::new(
+                UnsolvableError,
+                "Asymptotic slope of total variance must be greater than 0 (slope_plus)",
+            ));
         }
-        if params.b * (1.0 + params.p) >= 2.0 {
-            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be less than 2 (a)"));
+        if slope_plus >= 2.0 {
+            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be less than 2 (slope_plus)"));
         }
-        if params.b * (1.0 - params.p) <= 0.0 {
-            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be greater than 0 (b)"));
+        if slope_minus <= 0.0 {
+            return Err(TSError::new(
+                UnsolvableError,
+                "Asymptotic slope of total variance must be greater than 0 (slope_minus)",
+            ));
         }
-        if params.b * (1.0 - params.p) >= 2.0 {
-            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be less than 2 (b)"));
+        if slope_minus >= 2.0 {
+            return Err(TSError::new(
+                UnsolvableError,
+                "Asymptotic slope of total variance must be less than 2 (slope_minus)",
+            ));
         }
 
         Ok(())

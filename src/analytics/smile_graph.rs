@@ -535,7 +535,7 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
                     .get_underlying_forward_price()
                     .expect("Graph forward price must be valid"),
             ) - m;
-            let s = (d.powf(2.0) + o.powf(2.0)).sqrt();
+            let s = ((d * d) + (o * o)).sqrt();
 
             let deriv_b = p * d + s;
             let deriv_p = b * d;
