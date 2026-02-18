@@ -3,6 +3,7 @@ black scholes explodes if volatility is 0
 
 fuzzing tests to test for crashes etc
 
+separate lines for put and call
 
 should we remove this check?
 

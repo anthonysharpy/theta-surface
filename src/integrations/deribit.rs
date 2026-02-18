@@ -105,10 +105,21 @@ impl DeribitOptionInstrument {
             .strike
             .to_f64()
             .ok_or(TsError::new(UnusableAPIData, "Failed converting strike price to f64"))?;
+        let best_ask_price = ticker_data
+            .best_ask_price
+            .to_f64()
+            .ok_or(TsError::new(UnusableAPIData, "Failed converting best ask price to f64"))?;
 
         let price = match self.quote_currency.as_ref() {
             "USD" => mark_price,
-            "BTC" => mark_price * index_price,
+            "BTC" => {
+                // Some very illiquid options can be missing a mark price.
+                if mark_price > 0.0 {
+                    mark_price * index_price
+                } else {
+                    best_ask_price * index_price
+                }
+            }
             other => return Err(TsError::new(UnusableAPIData, format!("Unknown currency {other}"))),
         };
 
