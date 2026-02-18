@@ -13,3 +13,8 @@ should we remove this check?
             format!("SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"),
         ));
     }
+
+
+
+this in console:
+Discarding an invalid option: Calculating total implied variance failed: Failed calculating implied volatility for instrument 589231: option_price (must be > 0, found 0)...

@@ -37,7 +37,13 @@ pub fn build_graphs() {
 
     for graph in graphs_data.smile_graphs {
         let (first_quarter_points, middle_points, last_quarter_points, highest_implied_volatility_1) =
-            build_graph_lines(&graph, 400).unwrap_or_else(|e| panic!("Failed building graph lines: {}", e.reason));
+            match build_graph_lines(&graph, 400) {
+                Ok(v) => v,
+                Err(e) => {
+                    println!("Failed building graph lines: {}, skipping...", e.reason);
+                    continue;
+                }
+            };
 
         let (option_points, highest_implied_volatility_2) = match build_graph_points(&graph) {
             Ok(v) => v,

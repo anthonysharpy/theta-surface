@@ -236,6 +236,12 @@ impl SmileGraph {
         let o_iterations = ((o_end - o_start) / o_step) as u64;
         let mut o_patience_scale = 1.0;
 
+        let total_iterations = o_iterations * m_iterations * p_iterations * b_iterations;
+        let impatience = match total_iterations < constants::DISABLE_IMPATIENCE_BELOW_ITERATIONS {
+            true => 1.0,
+            false => constants::SVI_FITTING_IMPATIENCE,
+        };
+
         // Otherwise, for example if the minimum required improvement was 1%, and we kept getting 0.9% improvements,
         // the patience would not get reset even though we're making lots of progress.
         let mut error_at_last_patience_reset = f64::MAX;
@@ -245,7 +251,7 @@ impl SmileGraph {
         println!("p={p_start} => {p_end}");
         println!("m={m_start} => {m_end}");
         println!("o={o_start} => {o_end}");
-        println!("Max iterations: {}", (o_iterations * m_iterations * p_iterations * b_iterations));
+        println!("Max iterations: {total_iterations}");
         println!("=====================================");
 
         while b <= b_end {
@@ -253,19 +259,19 @@ impl SmileGraph {
 
             // This technically increases the value by 1.1 even on the first iteration, but doing it this way is
             // much simpler than creating and updating a bunch of bools.
-            b_patience_scale *= constants::SVI_FITTING_IMPATIENCE;
+            b_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(b_patience_scale * impatience);
             let mut p = p_start;
 
             while p <= p_end {
-                p_patience_scale *= constants::SVI_FITTING_IMPATIENCE;
+                p_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(p_patience_scale * impatience);
                 let mut m = m_start;
 
                 while m <= m_end {
-                    m_patience_scale *= constants::SVI_FITTING_IMPATIENCE;
+                    m_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(m_patience_scale * impatience);
                     let mut o = o_start;
 
                     while o <= o_end {
-                        o_patience_scale *= constants::SVI_FITTING_IMPATIENCE;
+                        o_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(o_patience_scale * impatience);
                         let new_params = SVICurveParameters::new_from_values(0.0, b, p, m, o);
 
                         let result = match new_params {

@@ -141,6 +141,12 @@ fn fit_smile_graphs(smile_graphs: &mut [SmileGraph]) -> Result<(), TsError> {
     let mut succeeded_smiles = 0;
     let mut failed_smiles = 0;
 
+    smile_graphs.sort_by_key(|x| {
+        x.get_expiration()
+            .expect("Smile graph had invalid expiration")
+            .timestamp()
+    });
+
     for graph in smile_graphs.iter_mut() {
         let current_smile = succeeded_smiles + failed_smiles + 1;
         println!();
