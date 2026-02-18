@@ -342,19 +342,12 @@ impl SmileGraph {
         let mut m_patience_scale = 1.0;
         let mut o_patience_scale = 1.0;
 
-        let mut skip_next_progress_log = false;
-        let mut double_checked = false;
-
-        'start: while b <= b_end {
-            if !skip_next_progress_log {
-                // .max(0.0) to stop nonsense negative values caused by floating point imprecision.
-                let progress_percent = (((b - b_start) / (b_end - b_start)) * 100.0)
-                    .floor()
-                    .max(0.0);
-                println!("Progress: {progress_percent}%");
-            } else {
-                skip_next_progress_log = false;
-            }
+        while b <= b_end {
+            // .max(0.0) to stop nonsense negative values caused by floating point imprecision.
+            let progress_percent = (((b - b_start) / (b_end - b_start)) * 100.0)
+                .floor()
+                .max(0.0);
+            println!("Progress: {progress_percent}%");
 
             while p <= p_end {
                 while m <= m_end {
@@ -378,28 +371,6 @@ impl SmileGraph {
                         };
 
                         if error <= (current_best_error - (current_best_error * constants::SVI_FITTING_REQUIRED_IMPROVEMENT)) {
-                            // Once we've found a better solution, we're actually going to backtrack a bit, reset the patience
-                            // and search the previous area a bit more carefully. This is to reduce the chances that we accidentally
-                            // skipped over the most optimal solution.
-                            if !double_checked {
-                                double_checked = true;
-
-                                // Don't print immediately after having double checked since it's the same as the last thing we printed.
-                                skip_next_progress_log = true;
-
-                                b -= B_STEP * b_patience_scale;
-                                p = p_start;
-                                m = m_start;
-                                o = o_start;
-
-                                o_patience_scale = 1.0;
-                                m_patience_scale = 1.0;
-                                p_patience_scale = 1.0;
-                                b_patience_scale = 1.0;
-
-                                continue 'start;
-                            }
-
                             return (false, error, optimised_params, b, p, m, o);
                         }
 
