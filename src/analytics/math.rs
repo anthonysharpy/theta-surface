@@ -3,8 +3,8 @@ use crate::analytics::types::SVICurveParameters;
 use crate::constants;
 use crate::helpers::error_unless_positive_f64;
 use crate::helpers::error_unless_valid_f64;
-use crate::types::TSError;
-use crate::types::TSErrorType::UnsolvableError;
+use crate::types::TsError;
+use crate::types::TsErrorType::UnsolvableError;
 use std::f64::consts::E;
 
 /// Calculate the Black-Scholes implied volatility of a dividendless option.
@@ -25,7 +25,7 @@ pub fn calculate_bs_implied_volatility(
     risk_free_interest_rate: f64,
     option_price: f64,
     option_type: OptionType,
-) -> Result<f64, TSError> {
+) -> Result<f64, TsError> {
     error_unless_positive_f64(asset_spot_price, "asset_spot_price")?;
     error_unless_positive_f64(strike_price, "strike_price")?;
     error_unless_positive_f64(years_until_expiry, "years_until_expiry")?;
@@ -45,7 +45,7 @@ pub fn calculate_bs_implied_volatility(
     match option_type {
         OptionType::Call => {
             if option_price < asset_spot_price - strike_value_now {
-                return Err(TSError::new(
+                return Err(TsError::new(
                     UnsolvableError,
                     format!(
                         "Call option price mathematically impossibly low ({option_price} < {asset_spot_price} - {strike_value_now}) (Is the data stale?)"
@@ -53,7 +53,7 @@ pub fn calculate_bs_implied_volatility(
                 ));
             }
             if option_price > asset_spot_price {
-                return Err(TSError::new(
+                return Err(TsError::new(
                     UnsolvableError,
                     format!("Call option price too high ({option_price} > {asset_spot_price})"),
                 ));
@@ -61,7 +61,7 @@ pub fn calculate_bs_implied_volatility(
         }
         OptionType::Put => {
             if option_price < strike_value_now - asset_spot_price {
-                return Err(TSError::new(
+                return Err(TsError::new(
                     UnsolvableError,
                     format!(
                         "Put option price mathematically impossibly low ({option_price} < {strike_value_now} - {asset_spot_price}) (Is the data stale?)"
@@ -69,7 +69,7 @@ pub fn calculate_bs_implied_volatility(
                 ));
             }
             if option_price > strike_value_now {
-                return Err(TSError::new(
+                return Err(TsError::new(
                     UnsolvableError,
                     format!("Put option price too high ({option_price} > {strike_value_now})"),
                 ));
@@ -108,7 +108,7 @@ pub fn calculate_bs_implied_volatility(
 
         // Not sure if this could ever happen, but just in case.
         if iterations > 64 {
-            return Err(TSError::new(UnsolvableError, "Too many iterations when finding bounds"));
+            return Err(TsError::new(UnsolvableError, "Too many iterations when finding bounds"));
         }
     }
 
@@ -181,7 +181,7 @@ pub fn calculate_bs_implied_volatility(
 
         // To be safe.
         if iterations > 64 {
-            return Err(TSError::new(UnsolvableError, "Too many iterations when finding implied volatility"));
+            return Err(TsError::new(UnsolvableError, "Too many iterations when finding implied volatility"));
         }
     }
 }
@@ -205,7 +205,7 @@ pub fn black_scholes_d1(
     risk_free_interest_rate: f64,
     volatility: f64,
     years_until_expiry: f64,
-) -> Result<f64, TSError> {
+) -> Result<f64, TsError> {
     error_unless_positive_f64(asset_spot_price, "asset_spot_price")?;
     error_unless_positive_f64(strike_price, "strike_price")?;
     error_unless_positive_f64(volatility, "volatility")?;
@@ -234,7 +234,7 @@ pub fn black_scholes_d1(
 /// * `d1` - The Black-Scholes d1 value (see black_scholes_d1()).
 /// * `years_until_expiry` - Years until the option expires (365 day year).
 /// * `volatility` - Annualised standard deviation of the underlying log returns. Must use a 365 day year.
-pub fn black_scholes_d2(d1: f64, volatility: f64, years_until_expiry: f64) -> Result<f64, TSError> {
+pub fn black_scholes_d2(d1: f64, volatility: f64, years_until_expiry: f64) -> Result<f64, TsError> {
     error_unless_positive_f64(volatility, "volatility")?;
     error_unless_positive_f64(years_until_expiry, "years_until_expiry")?;
     error_unless_valid_f64(d1, "d1")?;
@@ -263,7 +263,7 @@ pub fn calculate_black_scholes(
     risk_free_interest_rate: f64,
     volatility: f64,
     option_type: OptionType,
-) -> Result<f64, TSError> {
+) -> Result<f64, TsError> {
     error_unless_positive_f64(asset_spot_price, "asset_spot_price")?;
     error_unless_positive_f64(strike_price, "strike_price")?;
     error_unless_positive_f64(years_until_expiry, "years_until_expiry")?;
@@ -321,7 +321,7 @@ pub fn has_butterfly_arbitrage(
     to_strike: u64,
     forward_price: f64,
     resolution: u64,
-) -> Result<bool, TSError> {
+) -> Result<bool, TsError> {
     error_unless_positive_f64(forward_price, "forward_price")?;
 
     let range = to_strike - from_strike;
@@ -361,7 +361,7 @@ pub fn has_butterfly_arbitrage(
 /// Calculate total variance using the stochastic volatility inspired model equation, which produces a smile shape.
 /// There are other shapes you can use, some of which guarantee no arbitrage, but we'll stick with this for now
 /// as it's widely used.
-pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f64) -> Result<f64, TSError> {
+pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f64) -> Result<f64, TsError> {
     error_unless_valid_f64(log_moneyness, "log_moneyness")?;
 
     let a = svi_curve_parameters.get_a();
@@ -376,7 +376,7 @@ pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f6
 
     // Do this even if constants::VALIDATE_SVI is false, because this will probably mess with the error function.
     if result < 0.0001 {
-        return Err(TSError::new(
+        return Err(TsError::new(
             UnsolvableError,
             format!("SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"),
         ));

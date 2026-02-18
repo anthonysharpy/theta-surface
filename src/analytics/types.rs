@@ -2,7 +2,7 @@ use crate::{
     analytics::SmileGraph,
     constants,
     helpers::error_unless_valid_f64,
-    types::{TSError, TSErrorType::RuntimeError, TSErrorType::UnsolvableError},
+    types::{TsError, TsErrorType::RuntimeError, TsErrorType::UnsolvableError},
 };
 
 // The parameters that define the SVI smile curve function
@@ -31,7 +31,7 @@ impl SVICurveParameters {
         params
     }
 
-    pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> Result<Self, TSError> {
+    pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> Result<Self, TsError> {
         let params = SVICurveParameters { a, b, p, m, o };
 
         Self::check_valid(&params)?;
@@ -60,7 +60,7 @@ impl SVICurveParameters {
     }
 
     /// Assert that the maths is correct.
-    pub fn check_valid(params: &SVICurveParameters) -> Result<(), TSError> {
+    pub fn check_valid(params: &SVICurveParameters) -> Result<(), TsError> {
         error_unless_valid_f64(params.b, "b")?;
         error_unless_valid_f64(params.p, "p")?;
         error_unless_valid_f64(params.o, "o")?;
@@ -68,21 +68,21 @@ impl SVICurveParameters {
         error_unless_valid_f64(params.a, "a")?;
 
         if params.b < 0.0 {
-            return Err(TSError::new(UnsolvableError, format!("b cannot be less than zero ({})", params.b)));
+            return Err(TsError::new(UnsolvableError, format!("b cannot be less than zero ({})", params.b)));
         }
         if params.p < -1.0 {
-            return Err(TSError::new(UnsolvableError, "p must be greater than -1"));
+            return Err(TsError::new(UnsolvableError, "p must be greater than -1"));
         }
         if params.p >= 1.0 {
-            return Err(TSError::new(UnsolvableError, "p must be smaller than 1"));
+            return Err(TsError::new(UnsolvableError, "p must be smaller than 1"));
         }
         if params.o <= 0.0 {
-            return Err(TSError::new(UnsolvableError, "o must be greater than 0"));
+            return Err(TsError::new(UnsolvableError, "o must be greater than 0"));
         }
 
         // Assert non-negative variance.
         if params.a + (params.b * params.o * (1.0 - (params.p * params.p)).sqrt()) <= 0.0 {
-            return Err(TSError::new(UnsolvableError, "Variance must be greater than 0"));
+            return Err(TsError::new(UnsolvableError, "Variance must be greater than 0"));
         }
 
         // Always check for the above even if this is disabled, because values outside those bounds will cause
@@ -96,22 +96,22 @@ impl SVICurveParameters {
         let slope_minus = params.b * (1.0 - params.p);
 
         if slope_plus <= 0.0 {
-            return Err(TSError::new(
+            return Err(TsError::new(
                 UnsolvableError,
                 "Asymptotic slope of total variance must be greater than 0 (slope_plus)",
             ));
         }
         if slope_plus >= 2.0 {
-            return Err(TSError::new(UnsolvableError, "Asymptotic slope of total variance must be less than 2 (slope_plus)"));
+            return Err(TsError::new(UnsolvableError, "Asymptotic slope of total variance must be less than 2 (slope_plus)"));
         }
         if slope_minus <= 0.0 {
-            return Err(TSError::new(
+            return Err(TsError::new(
                 UnsolvableError,
                 "Asymptotic slope of total variance must be greater than 0 (slope_minus)",
             ));
         }
         if slope_minus >= 2.0 {
-            return Err(TSError::new(
+            return Err(TsError::new(
                 UnsolvableError,
                 "Asymptotic slope of total variance must be less than 2 (slope_minus)",
             ));
@@ -128,13 +128,13 @@ pub enum OptionType {
 }
 
 impl TryFrom<&str> for OptionType {
-    type Error = TSError;
+    type Error = TsError;
 
-    fn try_from(option_type: &str) -> Result<Self, TSError> {
+    fn try_from(option_type: &str) -> Result<Self, TsError> {
         match option_type.to_ascii_lowercase().as_str() {
             "call" => Ok(OptionType::Call),
             "put" => Ok(OptionType::Put),
-            _ => Err(TSError::new(RuntimeError, format!("Invalid option type {option_type}"))),
+            _ => Err(TsError::new(RuntimeError, format!("Invalid option type {option_type}"))),
         }
     }
 }

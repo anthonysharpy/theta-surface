@@ -1,4 +1,4 @@
 mod errors;
 
-pub use errors::TSError;
-pub use errors::TSErrorType;
+pub use errors::TsError;
+pub use errors::TsErrorType;

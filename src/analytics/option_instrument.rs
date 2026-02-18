@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use crate::{
     analytics::{OptionType, math},
     constants, helpers,
-    types::{TSError, TSErrorType::RuntimeError, TSErrorType::UnsolvableError},
+    types::{TsError, TsErrorType::RuntimeError, TsErrorType::UnsolvableError},
 };
 
 /// In the real world we usually wouldn't use f64 for money fields etc. But since this is just for the purpose of market
@@ -46,16 +46,16 @@ impl OptionInstrument {
         }
     }
 
-    pub fn get_expiration(&self) -> Result<DateTime<Utc>, TSError> {
+    pub fn get_expiration(&self) -> Result<DateTime<Utc>, TsError> {
         DateTime::from_timestamp_secs(self.expiry_seconds as i64)
-            .ok_or(TSError::new(RuntimeError, "Failed creating timestamp from expiry_seconds"))
+            .ok_or(TsError::new(RuntimeError, "Failed creating timestamp from expiry_seconds"))
     }
 
-    pub fn get_years_until_expiry(&self) -> Result<f64, TSError> {
+    pub fn get_years_until_expiry(&self) -> Result<f64, TsError> {
         Ok((self.get_expiration()? - helpers::get_now()).num_seconds() as f64 / 31556926.0)
     }
 
-    pub fn get_implied_volatility(&self) -> Result<f64, TSError> {
+    pub fn get_implied_volatility(&self) -> Result<f64, TsError> {
         if let Some(iv) = self.implied_volatility.get() {
             return Ok(iv);
         };
@@ -69,7 +69,7 @@ impl OptionInstrument {
             self.option_type,
         )
         .map_err(|e| {
-            TSError::new(
+            TsError::new(
                 UnsolvableError,
                 format!("Failed calculating implied volatility for instrument {}: {}", &self.instrument_id, e.reason),
             )
@@ -79,7 +79,7 @@ impl OptionInstrument {
         Ok(implied_volatility)
     }
 
-    pub fn get_total_implied_variance(&self) -> Result<f64, TSError> {
+    pub fn get_total_implied_variance(&self) -> Result<f64, TsError> {
         if let Some(tiv) = self.total_implied_variance.get() {
             return Ok(tiv);
         }

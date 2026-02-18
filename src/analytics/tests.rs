@@ -2,7 +2,7 @@
 
 use crate::analytics::math::calculate_black_scholes;
 use crate::analytics::math::calculate_bs_implied_volatility;
-use crate::types::TSError;
+use crate::types::TsError;
 
 use super::*;
 
@@ -55,7 +55,7 @@ fn test_calculate_bs_implied_volatility() {
 }
 
 #[test]
-fn test_calculate_black_scholes() -> Result<(), TSError> {
+fn test_calculate_black_scholes() -> Result<(), TsError> {
     // Test some known-good examples from various resources.
     let res = calculate_black_scholes(100.0, 110.0, 90.0 / 365.0, 0.05, 0.2, OptionType::Call)?;
     assert_eq!(res, 1.167420038028638);

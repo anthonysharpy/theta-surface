@@ -1,24 +1,24 @@
 use std::f64;
 
-use crate::types::TSError;
-use crate::types::TSErrorType::RuntimeError;
+use crate::types::TsError;
+use crate::types::TsErrorType::RuntimeError;
 
-pub fn error_unless_positive_f64(val: f64, message: &str) -> Result<(), TSError> {
+pub fn error_unless_positive_f64(val: f64, message: &str) -> Result<(), TsError> {
     error_unless_valid_f64(val, message)?;
 
     if val <= 0.0 {
-        return Err(TSError::new(RuntimeError, format!("{} (must be > 0, found {})", message, val)));
+        return Err(TsError::new(RuntimeError, format!("{} (must be > 0, found {})", message, val)));
     }
 
     Ok(())
 }
 
-pub fn error_unless_valid_f64(val: f64, message: &str) -> Result<(), TSError> {
+pub fn error_unless_valid_f64(val: f64, message: &str) -> Result<(), TsError> {
     if val.is_nan() {
-        return Err(TSError::new(RuntimeError, format!("{} (must be valid f64, found NaN)", message)));
+        return Err(TsError::new(RuntimeError, format!("{} (must be valid f64, found NaN)", message)));
     }
     if val.is_infinite() {
-        return Err(TSError::new(RuntimeError, format!("{} (must be valid f64, found Inf)", message)));
+        return Err(TsError::new(RuntimeError, format!("{} (must be valid f64, found Inf)", message)));
     }
 
     Ok(())

@@ -1,11 +1,11 @@
 #[derive(Clone, PartialEq, Debug)]
-pub struct TSError {
+pub struct TsError {
     pub reason: String,
-    pub error_type: TSErrorType,
+    pub error_type: TsErrorType,
 }
 
-impl TSError {
-    pub fn new(error_type: TSErrorType, reason: impl Into<String>) -> Self {
+impl TsError {
+    pub fn new(error_type: TsErrorType, reason: impl Into<String>) -> Self {
         Self {
             reason: reason.into(),
             error_type,
@@ -14,11 +14,11 @@ impl TSError {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum TSErrorType {
+pub enum TsErrorType {
     /// API data was unusable.
     UnusableAPIData,
     /// Something unexpected happened.
     RuntimeError,
-    /// The maths were unsolveable.
+    /// The maths were unsolvable.
     UnsolvableError,
 }

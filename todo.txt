@@ -3,27 +3,6 @@ black scholes explodes if volatility is 0
 
 fuzzing tests to test for crashes etc
 
-===== QUALITY CHECK ======
-math.rs x
-option_instrument.rs x
-smile_graph x
-types x
-filio x
-formatting_helpers x
-time_helpers x
-deribit x
-networkio x
-build_graphs
-build_surface
-fetch_market_data
-help
-errors
-constants
-main
-
-cargo clippy 
-
-
 
 should we remove this check?
 

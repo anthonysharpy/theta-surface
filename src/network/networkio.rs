@@ -3,8 +3,8 @@ use std::sync::OnceLock;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 
-use crate::types::TSError;
-use crate::types::TSErrorType::RuntimeError;
+use crate::types::TsError;
+use crate::types::TsErrorType::RuntimeError;
 
 static HTTP_CLIENT: OnceLock<Client> = OnceLock::new();
 
@@ -18,19 +18,19 @@ fn get_http_client() -> &'static Client {
 }
 
 /// Perform an async JSON RPC request, returning the result as a T.
-pub async fn do_rpc_request_as_struct<T: DeserializeOwned>(url: &str) -> Result<T, TSError> {
+pub async fn do_rpc_request_as_struct<T: DeserializeOwned>(url: &str) -> Result<T, TsError> {
     let response = get_http_client()
         .get(url)
         .send()
         .await
-        .map_err(|e| TSError::new(RuntimeError, format!("Failed making request to {url}: {e}")))?
+        .map_err(|e| TsError::new(RuntimeError, format!("Failed making request to {url}: {e}")))?
         .error_for_status()
-        .map_err(|e| TSError::new(RuntimeError, format!("Got a HTTP error when making a request to {url}: {e}")))?;
+        .map_err(|e| TsError::new(RuntimeError, format!("Got a HTTP error when making a request to {url}: {e}")))?;
 
     let data: JsonRpcStructure<T> = response
         .json::<JsonRpcStructure<T>>()
         .await
-        .map_err(|e| TSError::new(RuntimeError, format!("Failed deserialising JSON after request to {url}: {e}")))?;
+        .map_err(|e| TsError::new(RuntimeError, format!("Failed deserialising JSON after request to {url}: {e}")))?;
 
     Ok(data.result)
 }

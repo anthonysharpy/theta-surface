@@ -9,8 +9,8 @@ use crate::{
     constants,
     helpers::{F64Helpers, error_unless_positive_f64},
     types::{
-        TSError,
-        TSErrorType::{RuntimeError, UnsolvableError},
+        TsError,
+        TsErrorType::{RuntimeError, UnsolvableError},
     },
 };
 
@@ -44,16 +44,16 @@ impl SmileGraph {
     }
 
     /// Internal helper for getting the first option in a way that doesn't panic.
-    fn get_first_option(&self) -> Result<&OptionInstrument, TSError> {
+    fn get_first_option(&self) -> Result<&OptionInstrument, TsError> {
         self.options
             .first()
-            .ok_or(TSError::new(RuntimeError, "Smile graphs has no options, this should never happen"))
+            .ok_or(TsError::new(RuntimeError, "Smile graphs has no options, this should never happen"))
     }
 
     /// Get the forward price that best represents all of the options. In reality, since we have normalised all the
     /// options to have the same spot price, it doesn't matter much how we calculate this. The only real guess here
     /// is the interest free rate.
-    pub fn get_underlying_forward_price(&self) -> Result<f64, TSError> {
+    pub fn get_underlying_forward_price(&self) -> Result<f64, TsError> {
         if let Some(price) = self.underlying_forward_price.get() {
             return Ok(price);
         };
@@ -66,7 +66,7 @@ impl SmileGraph {
         Ok(price)
     }
 
-    pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, TSError> {
+    pub fn get_implied_volatility_at_strike(&self, strike: f64) -> Result<f64, TsError> {
         error_unless_positive_f64(strike, "strike")?;
 
         let log_moneyness = (strike / self.get_underlying_forward_price()?).ln();
@@ -75,7 +75,7 @@ impl SmileGraph {
         Ok((implied_variance / self.get_years_until_expiry()?).sqrt())
     }
 
-    pub fn get_years_until_expiry(&self) -> Result<f64, TSError> {
+    pub fn get_years_until_expiry(&self) -> Result<f64, TsError> {
         self.get_first_option()?.get_years_until_expiry()
     }
 
@@ -85,32 +85,32 @@ impl SmileGraph {
     }
 
     // Will return an error if there is no expiration.
-    pub fn get_expiration(&self) -> Result<DateTime<Utc>, TSError> {
+    pub fn get_expiration(&self) -> Result<DateTime<Utc>, TsError> {
         self.get_first_option()?.get_expiration()
     }
 
-    fn check_option_valid(option: &OptionInstrument) -> Result<(), TSError> {
+    fn check_option_valid(option: &OptionInstrument) -> Result<(), TsError> {
         if option.get_years_until_expiry()? <= 0.0 {
-            return Err(TSError::new(UnsolvableError, "Option already expired"));
+            return Err(TsError::new(UnsolvableError, "Option already expired"));
         }
 
         option
             .get_total_implied_variance()
-            .map_err(|e| TSError::new(UnsolvableError, format!("Calculating total implied variance failed: {}", e.reason)))?;
+            .map_err(|e| TsError::new(UnsolvableError, format!("Calculating total implied variance failed: {}", e.reason)))?;
 
         option
             .get_implied_volatility()
-            .map_err(|e| TSError::new(UnsolvableError, format!("Calculating implied volatility failed: {}", e.reason)))?;
+            .map_err(|e| TsError::new(UnsolvableError, format!("Calculating implied volatility failed: {}", e.reason)))?;
 
         Ok(())
     }
 
     /// Insert an option into this smile graph. The option must have the same expiry as previous inserted options (if any).
-    pub fn try_insert_option(&mut self, option: OptionInstrument) -> Result<(), TSError> {
+    pub fn try_insert_option(&mut self, option: OptionInstrument) -> Result<(), TsError> {
         Self::check_option_valid(&option)?;
 
         if !self.is_empty() && self.get_expiration()? != option.get_expiration()? {
-            return Err(TSError::new(RuntimeError, "Cannot mix options with different expiries"));
+            return Err(TsError::new(RuntimeError, "Cannot mix options with different expiries"));
         }
 
         if option.strike > self.highest_observed_strike {
@@ -132,7 +132,7 @@ impl SmileGraph {
     }
 
     /// Optimise the given SVI curve parameters, returning optimised parameters and their loss.
-    fn optimise_svi_params(&self, params: SVICurveParameters) -> Result<(SVICurveParameters, f64), TSError> {
+    fn optimise_svi_params(&self, params: SVICurveParameters) -> Result<(SVICurveParameters, f64), TsError> {
         let mut problem = SVIProblem {
             // The initial guess for the SVI function.
             p: Vector4::new(params.get_b(), params.get_p(), params.get_m(), params.get_o()),
@@ -151,26 +151,26 @@ impl SmileGraph {
             .minimize(problem);
 
         if !report.termination.was_successful() {
-            return Err(TSError::new(
+            return Err(TsError::new(
                 UnsolvableError,
                 format!("Failed computing Levenberg-Marquardt: {:#?}", report.termination),
             ));
         }
 
         if !result.curve_valid || result.has_arbitrage {
-            return Err(TSError::new(UnsolvableError, "No mathematically valid curve found"));
+            return Err(TsError::new(UnsolvableError, "No mathematically valid curve found"));
         }
 
         let curve = result
             .curve
-            .ok_or(TSError::new(RuntimeError, "No curve was produced"))?;
+            .ok_or(TsError::new(RuntimeError, "No curve was produced"))?;
 
         Ok((curve, report.objective_function.abs()))
     }
 
     /// Using the provided options, calculate the smile shape that best represents the data with the least error.
     /// Returns the error on success.
-    pub fn fit_smile(&mut self) -> Result<(), TSError> {
+    pub fn fit_smile(&mut self) -> Result<(), TsError> {
         let mut best_error = f64::MAX;
         let mut best_params: Option<SVICurveParameters> = None;
 
@@ -179,7 +179,7 @@ impl SmileGraph {
             .options
             .iter()
             .map(|x| x.get_total_implied_variance())
-            .collect::<Result<Vec<f64>, TSError>>()?;
+            .collect::<Result<Vec<f64>, TsError>>()?;
         let option_log_moneynesses: Vec<f64> = self
             .options
             .iter()
@@ -188,19 +188,19 @@ impl SmileGraph {
         let highest_total_implied_variance = *option_total_implied_variances
             .iter()
             .max_by(|a, b| a.total_cmp(b))
-            .ok_or(TSError::new(RuntimeError, "Couldn't find max when calculating highest_total_implied_variance"))?;
+            .ok_or(TsError::new(RuntimeError, "Couldn't find max when calculating highest_total_implied_variance"))?;
         let lowest_total_implied_variance = *option_total_implied_variances
             .iter()
             .min_by(|a, b| a.total_cmp(b))
-            .ok_or(TSError::new(RuntimeError, "Couldn't find min when calculating lowest_total_implied_variance"))?;
+            .ok_or(TsError::new(RuntimeError, "Couldn't find min when calculating lowest_total_implied_variance"))?;
         let highest_log_moneyness = *option_log_moneynesses
             .iter()
             .max_by(|a, b| a.total_cmp(b))
-            .ok_or(TSError::new(RuntimeError, "Couldn't find max when calculating highest_log_moneyness"))?;
+            .ok_or(TsError::new(RuntimeError, "Couldn't find max when calculating highest_log_moneyness"))?;
         let lowest_log_moneyness = *option_log_moneynesses
             .iter()
             .min_by(|a, b| a.total_cmp(b))
-            .ok_or(TSError::new(RuntimeError, "Couldn't find min when calculating lowest_log_moneyness"))?;
+            .ok_or(TsError::new(RuntimeError, "Couldn't find min when calculating lowest_log_moneyness"))?;
         let log_moneyness_range = highest_log_moneyness - lowest_log_moneyness;
         let s = (highest_total_implied_variance - lowest_total_implied_variance) / log_moneyness_range.max(0.000001);
 
@@ -327,7 +327,7 @@ impl SmileGraph {
         }
 
         self.svi_curve_parameters =
-            best_params.ok_or(TSError::new(UnsolvableError, "No graph could be fit! This is probably a bug!"))?;
+            best_params.ok_or(TsError::new(UnsolvableError, "No graph could be fit! This is probably a bug!"))?;
         self.has_been_fit = true;
 
         println!("Smile fit with error of {best_error}...");
@@ -343,8 +343,8 @@ impl SmileGraph {
         Ok(())
     }
 
-    /// Checks if this smile graph is valid and generally safe for use. If not, a reason is returned as a string.
-    pub fn is_valid(&self) -> Result<(), String> {
+    /// Checks if this smile graph is valid and generally safe for use. If not, a string error is returned with a reason.
+    pub fn error_unless_valid(&self) -> Result<(), String> {
         if (self.options.len() as u64) < constants::SMILE_MIN_OPTIONS_REQURED {
             return Err(format!(
                 "The smile graph must contain at least {} options, found {}",
@@ -375,7 +375,7 @@ fn calculate_least_squares_residual(
     params: &SVICurveParameters,
     option: &OptionInstrument,
     forward_price: f64,
-) -> Result<f64, TSError> {
+) -> Result<f64, TsError> {
     let log_moneyness = option.get_log_moneyness_using_custom_forward(forward_price);
 
     // This uses the option's own forward price. Which would probably be wrong were it not for the fact that

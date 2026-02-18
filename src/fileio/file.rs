@@ -2,44 +2,44 @@ use std::fs;
 
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::types::TSError;
-use crate::types::TSErrorType::RuntimeError;
+use crate::types::TsError;
+use crate::types::TsErrorType::RuntimeError;
 
-pub fn save_struct_to_file<T: Serialize>(obj: &T, path: &str) -> Result<(), TSError> {
+pub fn save_struct_to_file<T: Serialize>(obj: &T, path: &str) -> Result<(), TsError> {
     let text =
-        serde_json::to_string_pretty(obj).map_err(|e| TSError::new(RuntimeError, format!("Failed serialising object: {}", e)))?;
+        serde_json::to_string_pretty(obj).map_err(|e| TsError::new(RuntimeError, format!("Failed serialising object: {}", e)))?;
 
-    fs::write(path, text).map_err(|e| TSError::new(RuntimeError, format!("Failed writing text to path {}: {}", path, e)))?;
+    fs::write(path, text).map_err(|e| TsError::new(RuntimeError, format!("Failed writing text to path {}: {}", path, e)))?;
 
     Ok(())
 }
 
-pub fn load_struct_from_file<T: DeserializeOwned>(path: &str) -> Result<T, TSError> {
+pub fn load_struct_from_file<T: DeserializeOwned>(path: &str) -> Result<T, TsError> {
     let data = fs::read_to_string(path)
-        .map_err(|e| TSError::new(RuntimeError, format!("Failed reading file at path {}: {}", path, e)))?;
+        .map_err(|e| TsError::new(RuntimeError, format!("Failed reading file at path {}: {}", path, e)))?;
 
-    serde_json::from_str::<T>(&data).map_err(|e| TSError::new(RuntimeError, format!("Failed deserialising object: {}", e)))
+    serde_json::from_str::<T>(&data).map_err(|e| TsError::new(RuntimeError, format!("Failed deserialising object: {}", e)))
 }
 
 /// Delete all files in the given directory except files whose name contains ignore_filter.
-pub fn clear_directory(path: &str, ignore_filter: &str) -> Result<(), TSError> {
-    let files = fs::read_dir(path).map_err(|e| TSError::new(RuntimeError, format!("Couldn't read directory {path}: {e}")))?;
+pub fn clear_directory(path: &str, ignore_filter: &str) -> Result<(), TsError> {
+    let files = fs::read_dir(path).map_err(|e| TsError::new(RuntimeError, format!("Couldn't read directory {path}: {e}")))?;
 
     for file in files {
-        let file_info = file.map_err(|e| TSError::new(RuntimeError, format!("File reference was invalid: {e}")))?;
+        let file_info = file.map_err(|e| TsError::new(RuntimeError, format!("File reference was invalid: {e}")))?;
         let path = file_info.path();
         let path_name = path.display();
         let raw_file_name = file_info.file_name();
         let file_name = raw_file_name
             .to_str()
-            .ok_or(TSError::new(RuntimeError, "Failed getting file name"))?;
+            .ok_or(TsError::new(RuntimeError, "Failed getting file name"))?;
 
         if !path.is_file() || file_name.contains(ignore_filter) {
             continue;
         }
 
         fs::remove_file(file_info.path())
-            .map_err(|e| TSError::new(RuntimeError, format!("Failed to delete file at path {path_name}: {e}")))?;
+            .map_err(|e| TsError::new(RuntimeError, format!("Failed to delete file at path {path_name}: {e}")))?;
     }
 
     Ok(())

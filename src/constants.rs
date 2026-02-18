@@ -1,5 +1,6 @@
 // Some constants based on assumptions. These could be refactored into program parameters.
 
+/// The penalty the fitting algorithm receives when it tries to use a mathematically invalid curve.
 pub const INVALID_FIT_PENALITY: f64 = 999.0;
 
 /// The assumed interest free rate used when calculating the forward price. In reality we would figure this out by

@@ -3,8 +3,8 @@ use rust_decimal::prelude::ToPrimitive;
 
 use crate::{
     analytics::{OptionInstrument, OptionType},
-    types::TSError,
-    types::TSErrorType::UnusableAPIData,
+    types::TsError,
+    types::TsErrorType::UnusableAPIData,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -88,28 +88,28 @@ pub struct DeribitOptionInstrument {
 }
 
 impl DeribitOptionInstrument {
-    pub fn to_option(&self) -> Result<OptionInstrument, TSError> {
+    pub fn to_option(&self) -> Result<OptionInstrument, TsError> {
         let ticker_data = self
             .ticker_data
             .as_ref()
-            .ok_or(TSError::new(UnusableAPIData, "Failed getting ticker data"))?;
+            .ok_or(TsError::new(UnusableAPIData, "Failed getting ticker data"))?;
         let index_price = ticker_data
             .index_price
             .to_f64()
-            .ok_or(TSError::new(UnusableAPIData, "Failed converting index price to f64"))?;
+            .ok_or(TsError::new(UnusableAPIData, "Failed converting index price to f64"))?;
         let mark_price = ticker_data
             .mark_price
             .to_f64()
-            .ok_or(TSError::new(UnusableAPIData, "Failed converting mark price to f64"))?;
+            .ok_or(TsError::new(UnusableAPIData, "Failed converting mark price to f64"))?;
         let strike_price = self
             .strike
             .to_f64()
-            .ok_or(TSError::new(UnusableAPIData, "Failed converting strike price to f64"))?;
+            .ok_or(TsError::new(UnusableAPIData, "Failed converting strike price to f64"))?;
 
         let price = match self.quote_currency.as_ref() {
             "USD" => mark_price,
             "BTC" => mark_price * index_price,
-            other => return Err(TSError::new(UnusableAPIData, format!("Unknown currency {other}"))),
+            other => return Err(TsError::new(UnusableAPIData, format!("Unknown currency {other}"))),
         };
 
         Ok(OptionInstrument::new(

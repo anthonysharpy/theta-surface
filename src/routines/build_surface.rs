@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry;
 
 use crate::analytics::{OptionInstrument, SmileGraph, SmileGraphsDataContainer};
 use crate::integrations::DeribitDataContainer;
-use crate::types::TSError;
+use crate::types::TsError;
 use crate::{constants, fileio};
 
 pub fn build_surface() {
@@ -34,7 +34,7 @@ pub fn build_surface() {
     println!("===============================================================");
 }
 
-fn load_saved_deribit_api_data() -> Result<DeribitDataContainer, TSError> {
+fn load_saved_deribit_api_data() -> Result<DeribitDataContainer, TsError> {
     println!("Loading external API data...");
     let data = fileio::load_struct_from_file::<DeribitDataContainer>("./data/deribit-btc-market-data.json")?;
     let external_data_count = data.options.len();
@@ -44,7 +44,7 @@ fn load_saved_deribit_api_data() -> Result<DeribitDataContainer, TSError> {
 }
 
 /// Turn API data into our internal options type, throwing away bad data.
-fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Result<Vec<OptionInstrument>, TSError> {
+fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Result<Vec<OptionInstrument>, TsError> {
     println!("Converting options to internal format...");
 
     let mut discarded_options = 0;
@@ -52,16 +52,13 @@ fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Resul
     let mut options: Vec<OptionInstrument> = Vec::new();
 
     for api_option in data.options {
-        match constants::ONLY_PROCESS_SMILE_DATE {
-            None => {}
-            Some(date) => {
-                if api_option.expiration_timestamp != date * 1000 {
-                    println!("Discarding option due to ONLY_PROCESS_SMILE_DATE flag ({})...", api_option.instrument_name);
-                    discarded_options += 1;
-                    continue;
-                }
-            }
-        };
+        if let Some(date) = constants::ONLY_PROCESS_SMILE_DATE
+            && api_option.expiration_timestamp != date * 1000
+        {
+            println!("Discarding option due to ONLY_PROCESS_SMILE_DATE flag ({})...", api_option.instrument_name);
+            discarded_options += 1;
+            continue;
+        }
 
         match api_option.to_option() {
             Err(e) => {
@@ -82,18 +79,19 @@ fn convert_external_data_to_internal_format(data: DeribitDataContainer) -> Resul
     Ok(options)
 }
 
-fn group_options_by_expiry(options: Vec<OptionInstrument>) -> Result<HashMap<i64, Vec<OptionInstrument>>, TSError> {
+fn group_options_by_expiry(options: Vec<OptionInstrument>) -> Result<HashMap<i64, Vec<OptionInstrument>>, TsError> {
     println!("Grouping {} options by expiry...", options.len());
 
     let mut grouped_options: HashMap<i64, Vec<OptionInstrument>> = HashMap::new();
 
     for option in options {
-        let expiration = option.get_expiration()?.timestamp_millis();
+        let expiration = option.get_expiration()?;
+        let expiration_millis = expiration.timestamp_millis();
 
-        match grouped_options.entry(expiration) {
+        match grouped_options.entry(expiration_millis) {
             Entry::Vacant(entry) => {
-                let formatted_expiration = option.get_expiration()?.to_rfc3339();
-                println!("Found a new expiry {expiration} (i.e. {formatted_expiration})...");
+                let formatted_expiration = expiration.to_rfc3339();
+                println!("Found a new expiry {expiration_millis} (i.e. {formatted_expiration})...");
                 let new_vector: Vec<OptionInstrument> = vec![option];
                 entry.insert(new_vector);
             }
@@ -126,7 +124,7 @@ fn build_smile_graphs(grouped_options: HashMap<i64, Vec<OptionInstrument>>) -> V
             }
         }
 
-        match smile_graph.is_valid() {
+        match smile_graph.error_unless_valid() {
             Ok(_) => smiles.push(smile_graph),
             Err(e) => println!("Discarding an invalid smile graph: {e}..."),
         };
@@ -137,7 +135,7 @@ fn build_smile_graphs(grouped_options: HashMap<i64, Vec<OptionInstrument>>) -> V
     smiles
 }
 
-fn fit_smile_graphs(smile_graphs: &mut [SmileGraph]) -> Result<(), TSError> {
+fn fit_smile_graphs(smile_graphs: &mut [SmileGraph]) -> Result<(), TsError> {
     println!("Fitting smile graphs...");
 
     let mut succeeded_smiles = 0;
@@ -166,7 +164,7 @@ fn fit_smile_graphs(smile_graphs: &mut [SmileGraph]) -> Result<(), TSError> {
     Ok(())
 }
 
-fn save_data_to_file(smiles: Vec<SmileGraph>) -> Result<(), TSError> {
+fn save_data_to_file(smiles: Vec<SmileGraph>) -> Result<(), TsError> {
     println!("Saving data to file...");
 
     let data = SmileGraphsDataContainer {
