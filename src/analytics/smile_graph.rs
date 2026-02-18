@@ -285,10 +285,10 @@ impl SmileGraph {
                 result.2.get_o().round_to_decimal_places(9),
             );
 
-            b = result.2.get_b();
-            p = result.2.get_p();
-            m = result.2.get_m();
-            o = result.2.get_o();
+            b = result.3;
+            p = result.4;
+            m = result.5;
+            o = result.6;
 
             best_error = result.1;
             best_curve = Some(result.2);
@@ -315,8 +315,11 @@ impl SmileGraph {
     /// Finish at *_end. When a loop reaches the end, start over from *_start.
     ///
     /// We'll return as soon as we find a better solution. The first return value is true if we reached the end of the
-    /// searchable range, or false if not. The second is the new error. The third is the new curve. NB that if we reached
-    /// the end of the searchable range, the other parameters are only placeholders.
+    /// searchable range, or false if not. The second is the new error. The third is the new curve. The last four are
+    /// the current b, p, m, o values.
+    ///
+    /// NB that if we reached the end of the searchable range, the other parameters (other than the first) are only
+    /// placeholders.
     fn search_for_better_curve(
         &self,
         mut b: f64,
@@ -333,7 +336,7 @@ impl SmileGraph {
         o_end: f64,
         impatience_acceleration: f64,
         current_best_error: f64,
-    ) -> (bool, f64, SVICurveParameters) {
+    ) -> (bool, f64, SVICurveParameters, f64, f64, f64, f64) {
         let mut b_patience_scale = 1.0;
         let mut p_patience_scale = 1.0;
         let mut m_patience_scale = 1.0;
@@ -397,7 +400,7 @@ impl SmileGraph {
                                 continue 'start;
                             }
 
-                            return (false, error, optimised_params);
+                            return (false, error, optimised_params, b, p, m, o);
                         }
 
                         o_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(o_patience_scale * impatience_acceleration);
@@ -422,7 +425,7 @@ impl SmileGraph {
             b += B_STEP * b_patience_scale;
         }
 
-        (true, 0.0, SVICurveParameters::new_empty())
+        (true, 0.0, SVICurveParameters::new_empty(), 0.0, 0.0, 0.0, 0.0)
     }
 
     /// Checks if this smile graph is valid and generally safe for use. If not, a string error is returned with a reason.
