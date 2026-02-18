@@ -2,7 +2,7 @@ use crate::{
     analytics::SmileGraph,
     constants,
     helpers::error_unless_valid_f64,
-    types::{TSError, TSErrorType::UnsolvableError},
+    types::{TSError, TSErrorType::RuntimeError, TSErrorType::UnsolvableError},
 };
 
 // The parameters that define the SVI smile curve function
@@ -127,12 +127,14 @@ pub enum OptionType {
     Put = 2,
 }
 
-impl OptionType {
-    pub fn from_string(option_type: &str) -> OptionType {
+impl TryFrom<&str> for OptionType {
+    type Error = TSError;
+
+    fn try_from(option_type: &str) -> Result<Self, TSError> {
         match option_type.to_ascii_lowercase().as_str() {
-            "call" => OptionType::Call,
-            "put" => OptionType::Put,
-            _ => panic!("Invalid option type {option_type}"),
+            "call" => Ok(OptionType::Call),
+            "put" => Ok(OptionType::Put),
+            _ => Err(TSError::new(RuntimeError, format!("Invalid option type {option_type}"))),
         }
     }
 }

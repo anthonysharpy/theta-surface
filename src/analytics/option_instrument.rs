@@ -8,6 +8,8 @@ use crate::{
     types::{TSError, TSErrorType::RuntimeError, TSErrorType::UnsolvableError},
 };
 
+/// In the real world we usually wouldn't use f64 for money fields etc. But since this is just for the purpose of market
+/// analysis it's probably a good idea to do it this way as it's much faster.
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct OptionInstrument {
     pub strike: f64,

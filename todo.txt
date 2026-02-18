@@ -11,8 +11,8 @@ types x
 filio x
 formatting_helpers x
 time_helpers x
-deribit
-networkio
+deribit x
+networkio x
 build_graphs
 build_surface
 fetch_market_data

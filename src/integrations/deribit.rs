@@ -4,7 +4,6 @@ use rust_decimal::prelude::ToPrimitive;
 use crate::{
     analytics::{OptionInstrument, OptionType},
     types::TSError,
-    types::TSErrorType::RuntimeError,
     types::TSErrorType::UnusableAPIData,
 };
 
@@ -93,19 +92,19 @@ impl DeribitOptionInstrument {
         let ticker_data = self
             .ticker_data
             .as_ref()
-            .ok_or(TSError::new(RuntimeError, "Failed getting ticker data"))?;
+            .ok_or(TSError::new(UnusableAPIData, "Failed getting ticker data"))?;
         let index_price = ticker_data
             .index_price
             .to_f64()
-            .ok_or(TSError::new(RuntimeError, "Failed converting index price to f64"))?;
+            .ok_or(TSError::new(UnusableAPIData, "Failed converting index price to f64"))?;
         let mark_price = ticker_data
             .mark_price
             .to_f64()
-            .ok_or(TSError::new(RuntimeError, "Failed converting mark price to f64"))?;
+            .ok_or(TSError::new(UnusableAPIData, "Failed converting mark price to f64"))?;
         let strike_price = self
             .strike
             .to_f64()
-            .ok_or(TSError::new(RuntimeError, "Failed converting strike price to f64"))?;
+            .ok_or(TSError::new(UnusableAPIData, "Failed converting strike price to f64"))?;
 
         let price = match self.quote_currency.as_ref() {
             "USD" => mark_price,
@@ -118,7 +117,7 @@ impl DeribitOptionInstrument {
             self.expiration_timestamp / 1000,
             strike_price,
             self.instrument_id.to_string().into_boxed_str(),
-            OptionType::from_string(&self.option_type),
+            OptionType::try_from(self.option_type.as_ref())?,
             index_price,
         ))
     }
