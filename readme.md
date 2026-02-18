@@ -78,7 +78,7 @@ cargo build
 ./target/debug/ThetaSurface fetch-market-data
 ```
 
-4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`. Fitting takes 1-2 minutes on a lower-mid-range laptop.
+4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`. Fitting takes 2-10 minutes on a lower-mid-range laptop, depending on the data.
 
 ```
 ./target/debug/ThetaSurface build-surface
