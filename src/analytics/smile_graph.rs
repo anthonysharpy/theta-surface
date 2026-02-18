@@ -4,6 +4,12 @@ use chrono::{DateTime, Utc};
 use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{Dyn, Matrix, Owned, U1, U4, Vector4};
 
+// Optimal step sizes for params when fitting SVI curve.
+const B_STEP: f64 = 0.01;
+const P_STEP: f64 = 0.1;
+const M_STEP: f64 = 0.1;
+const O_STEP: f64 = 0.05;
+
 use crate::{
     analytics::{self, OptionInstrument, math::has_butterfly_arbitrage, svi_variance, types::SVICurveParameters},
     constants,
@@ -171,9 +177,6 @@ impl SmileGraph {
     /// Using the provided options, calculate the smile shape that best represents the data with the least error.
     /// Returns the error on success.
     pub fn fit_smile(&mut self) -> Result<(), TsError> {
-        let mut best_error = f64::MAX;
-        let mut best_params: Option<SVICurveParameters> = None;
-
         let forward_price = self.get_underlying_forward_price()?;
         let option_total_implied_variances: Vec<f64> = self
             .options
@@ -210,41 +213,32 @@ impl SmileGraph {
         // Some of these values have been hand-tuned.
 
         // Search in the range 0.000001 -> 4s.
-        let b_step = 0.01;
         let b_start = 0.00001;
         let b_end = s * 5.0;
-        let b_iterations = ((b_end - 0.000001) / b_step) as u64;
+        let b_iterations = ((b_end - 0.000001) / B_STEP) as u64;
         let mut b = b_start;
-        let mut b_patience_scale = 1.0;
 
         // Search in the range -0.99 -> 0.99.
-        let p_step = 0.1;
         let p_start = -0.99;
         let p_end = 0.99;
-        let p_iterations = ((p_end - p_start) / p_step) as u64;
-        let mut p_patience_scale = 1.0;
+        let p_iterations = ((p_end - p_start) / P_STEP) as u64;
+        let mut p = p_start;
 
-        let m_step = 0.1;
         let m_start = lowest_log_moneyness;
         let m_end = highest_log_moneyness * 1.1;
-        let m_iterations = ((m_end - m_start) / m_step) as u64;
-        let mut m_patience_scale = 1.0;
+        let m_iterations = ((m_end - m_start) / M_STEP) as u64;
+        let mut m = m_start;
 
-        let o_step = 0.05;
         let o_start = log_moneyness_range * 0.05;
         let o_end = log_moneyness_range * 2.0;
-        let o_iterations = ((o_end - o_start) / o_step) as u64;
-        let mut o_patience_scale = 1.0;
+        let o_iterations = ((o_end - o_start) / O_STEP) as u64;
+        let mut o = o_start;
 
         let total_iterations = o_iterations * m_iterations * p_iterations * b_iterations;
-        let impatience = match total_iterations < constants::DISABLE_IMPATIENCE_BELOW_ITERATIONS {
+        let impatience_acceleration = match total_iterations < constants::DISABLE_IMPATIENCE_BELOW_ITERATIONS {
             true => 1.0,
             false => constants::SVI_FITTING_IMPATIENCE,
         };
-
-        // Otherwise, for example if the minimum required improvement was 1%, and we kept getting 0.9% improvements,
-        // the patience would not get reset even though we're making lots of progress.
-        let mut error_at_last_patience_reset = f64::MAX;
 
         println!("Searching in range:");
         println!("b={b_start} => {b_end}");
@@ -254,86 +248,54 @@ impl SmileGraph {
         println!("Max iterations: {total_iterations}");
         println!("=====================================");
 
-        while b <= b_end {
-            println!("Progress: {}%", (((b - b_start) / (b_end - b_start)) * 100.0).floor());
+        let mut best_curve: Option<SVICurveParameters> = Option::None;
+        let mut best_error: f64 = f64::MAX;
 
-            // This technically increases the value by 1.1 even on the first iteration, but doing it this way is
-            // much simpler than creating and updating a bunch of bools.
-            b_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(b_patience_scale * impatience);
-            let mut p = p_start;
+        // Keep searching for a better curve until we reach the end of the searchable range.
+        loop {
+            let result = self.search_for_better_curve(
+                b,
+                p,
+                m,
+                o,
+                b_start,
+                p_start,
+                m_start,
+                o_start,
+                b_end,
+                p_end,
+                m_end,
+                o_end,
+                impatience_acceleration,
+                best_error,
+            );
 
-            while p <= p_end {
-                p_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(p_patience_scale * impatience);
-                let mut m = m_start;
-
-                while m <= m_end {
-                    m_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(m_patience_scale * impatience);
-                    let mut o = o_start;
-
-                    while o <= o_end {
-                        o_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(o_patience_scale * impatience);
-                        let new_params = SVICurveParameters::new_from_values(0.0, b, p, m, o);
-
-                        let result = match new_params {
-                            Err(_) => {
-                                o += o_step * o_patience_scale;
-                                continue;
-                            }
-                            Ok(params) => self.optimise_svi_params(params),
-                        };
-
-                        let (optimised_params, error) = match result {
-                            Err(_) => {
-                                o += o_step * o_patience_scale;
-                                continue;
-                            }
-                            Ok(v) => v,
-                        };
-
-                        if error < best_error {
-                            let error_change_since_last_patience_reset = error_at_last_patience_reset - error;
-
-                            // Reset impatience only if there's a meaningful improvement.
-                            if error_change_since_last_patience_reset / best_error
-                                >= constants::IMPATIENCE_IMPROVEMENT_REQUIREMENT
-                            {
-                                error_at_last_patience_reset = error;
-                                p_patience_scale = 1.0;
-                                o_patience_scale = 1.0;
-                                b_patience_scale = 1.0;
-                                m_patience_scale = 1.0;
-
-                                println!(
-                                    "Found new best error of {} (a={}, b={}, p={}, m={}, o={})",
-                                    error.round_to_decimal_places(9),
-                                    optimised_params.get_a().round_to_decimal_places(9),
-                                    optimised_params.get_b().round_to_decimal_places(9),
-                                    optimised_params.get_p().round_to_decimal_places(9),
-                                    optimised_params.get_m().round_to_decimal_places(9),
-                                    optimised_params.get_o().round_to_decimal_places(9),
-                                );
-                            }
-
-                            best_error = error;
-                            best_params = Some(optimised_params);
-                        }
-
-                        o += o_step * o_patience_scale;
-                    }
-
-                    o_patience_scale = 1.0;
-                    m += m_step * m_patience_scale;
-                }
-
-                m_patience_scale = 1.0;
-                p += p_step * p_patience_scale;
+            // Reached the end.
+            if result.0 == true {
+                break;
             }
 
-            b += b_step * b_patience_scale;
+            println!(
+                "Found new best error of {} (a={}, b={}, p={}, m={}, o={})",
+                result.1.round_to_decimal_places(9),
+                result.2.get_a().round_to_decimal_places(9),
+                result.2.get_b().round_to_decimal_places(9),
+                result.2.get_p().round_to_decimal_places(9),
+                result.2.get_m().round_to_decimal_places(9),
+                result.2.get_o().round_to_decimal_places(9),
+            );
+
+            b = result.2.get_b();
+            p = result.2.get_p();
+            m = result.2.get_m();
+            o = result.2.get_o();
+
+            best_error = result.1;
+            best_curve = Some(result.2);
         }
 
         self.svi_curve_parameters =
-            best_params.ok_or(TsError::new(UnsolvableError, "No graph could be fit! This is probably a bug!"))?;
+            best_curve.ok_or(TsError::new(UnsolvableError, "No graph could be fit! This is probably a bug!"))?;
         self.has_been_fit = true;
 
         println!("Smile fit with error of {best_error}...");
@@ -347,6 +309,120 @@ impl SmileGraph {
         );
 
         Ok(())
+    }
+
+    /// Search for a smile graph curve with less error than current_best_error. Begin searching from b, p, m, o.
+    /// Finish at *_end. When a loop reaches the end, start over from *_start.
+    ///
+    /// We'll return as soon as we find a better solution. The first return value is true if we reached the end of the
+    /// searchable range, or false if not. The second is the new error. The third is the new curve. NB that if we reached
+    /// the end of the searchable range, the other parameters are only placeholders.
+    fn search_for_better_curve(
+        &self,
+        mut b: f64,
+        mut p: f64,
+        mut m: f64,
+        mut o: f64,
+        b_start: f64,
+        p_start: f64,
+        m_start: f64,
+        o_start: f64,
+        b_end: f64,
+        p_end: f64,
+        m_end: f64,
+        o_end: f64,
+        impatience_acceleration: f64,
+        current_best_error: f64,
+    ) -> (bool, f64, SVICurveParameters) {
+        let mut b_patience_scale = 1.0;
+        let mut p_patience_scale = 1.0;
+        let mut m_patience_scale = 1.0;
+        let mut o_patience_scale = 1.0;
+
+        let mut skip_next_progress_log = false;
+        let mut double_checked = false;
+
+        'start: while b <= b_end {
+            if !skip_next_progress_log {
+                // .max(0.0) to stop nonsense negative values caused by floating point imprecision.
+                let progress_percent = (((b - b_start) / (b_end - b_start)) * 100.0)
+                    .floor()
+                    .max(0.0);
+                println!("Progress: {progress_percent}%");
+            } else {
+                skip_next_progress_log = false;
+            }
+
+            while p <= p_end {
+                while m <= m_end {
+                    while o <= o_end {
+                        let new_params = SVICurveParameters::new_from_values(0.0, b, p, m, o);
+
+                        let result = match new_params {
+                            Err(_) => {
+                                o += O_STEP * o_patience_scale;
+                                continue;
+                            }
+                            Ok(params) => self.optimise_svi_params(params),
+                        };
+
+                        let (optimised_params, error) = match result {
+                            Err(_) => {
+                                o += O_STEP * o_patience_scale;
+                                continue;
+                            }
+                            Ok(v) => v,
+                        };
+
+                        if error <= (current_best_error - (current_best_error * constants::SVI_FITTING_REQUIRED_IMPROVEMENT)) {
+                            // Once we've found a better solution, we're actually going to backtrack a bit, reset the patience
+                            // and search the previous area a bit more carefully. This is to reduce the chances that we accidentally
+                            // skipped over the most optimal solution.
+                            if !double_checked {
+                                double_checked = true;
+
+                                // Don't print immediately after having double checked since it's the same as the last thing we printed.
+                                skip_next_progress_log = true;
+
+                                b -= B_STEP * b_patience_scale;
+                                p = p_start;
+                                m = m_start;
+                                o = o_start;
+
+                                o_patience_scale = 1.0;
+                                m_patience_scale = 1.0;
+                                p_patience_scale = 1.0;
+                                b_patience_scale = 1.0;
+
+                                continue 'start;
+                            }
+
+                            return (false, error, optimised_params);
+                        }
+
+                        o_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(o_patience_scale * impatience_acceleration);
+                        o += O_STEP * o_patience_scale;
+                    }
+
+                    o = o_start;
+
+                    m_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(m_patience_scale * impatience_acceleration);
+                    m += M_STEP * m_patience_scale;
+                }
+
+                m = m_start;
+
+                p_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(p_patience_scale * impatience_acceleration);
+                p += P_STEP * p_patience_scale;
+            }
+
+            p = p_start;
+
+            b_patience_scale = constants::SVI_FITTING_MAX_IMPATIENCE.min(b_patience_scale * impatience_acceleration);
+            b += B_STEP * b_patience_scale;
+        }
+
+        (true, 0.0, SVICurveParameters::new_empty())
     }
 
     /// Checks if this smile graph is valid and generally safe for use. If not, a string error is returned with a reason.

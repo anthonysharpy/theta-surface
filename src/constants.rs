@@ -38,11 +38,11 @@ pub const DISABLE_IMPATIENCE_BELOW_ITERATIONS: u64 = 2000;
 /// Caps the maximum impatience the algorithm can have, stopping it from skipping over potentially valid solutions.
 /// A maximum of e.g. 10 means the algorithm can go through a parameter at most 10 times as fast. However, there are four
 /// parameters in the fitting loop, so the maximum theoretical speedup is actually x^4 (i.e. 10,000x).
-pub const SVI_FITTING_MAX_IMPATIENCE: f64 = 10.0;
+pub const SVI_FITTING_MAX_IMPATIENCE: f64 = 5.0;
 
-/// When we find a new best error, we reset the impatience. But only if the new error was at least this percent better
-/// than the old one. Written as a decimal (0 - 1).
-pub const IMPATIENCE_IMPROVEMENT_REQUIREMENT: f64 = 0.005;
+/// If the error doesn't decrease by at least this much percent then we will treat a new curve as a non-improvement and ignore it.
+/// 0.01 = 1%.
+pub const SVI_FITTING_REQUIRED_IMPROVEMENT: f64 = 0.01;
 
 /// When solving implied volatility, we will keep searching until it's this close.
 pub const IMPLIED_VOLATILITY_SOLVER_ACCURACY: f64 = 0.0001;
