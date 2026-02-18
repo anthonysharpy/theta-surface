@@ -375,7 +375,7 @@ pub fn svi_variance(svi_curve_parameters: &SVICurveParameters, log_moneyness: f6
     let result = a + b * ((p * adjusted_log_moneyness) + ((adjusted_log_moneyness * adjusted_log_moneyness) + (o * o)).sqrt());
 
     // Do this even if constants::VALIDATE_SVI is false, because this will probably mess with the error function.
-    if result < 0.0001 {
+    if result <= 0.0 {
         return Err(TsError::new(
             UnsolvableError,
             format!("SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"),
