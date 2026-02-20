@@ -108,7 +108,7 @@ _**build-surface**_
 - Creating the smile graph ("fitting") involves using a guessing-based algorithm to find the most accurate curve that fits the data.
 - First, we use a multi-layered search that starts by roughly scanning the whole likely range of values and then honing in on the area where the optimal solution is found. This provides us starting values for the Levenberg-Marquardt algorithm, which is a form of gradient descent that helps us rapidly converge on the best solution.
 - The curve we fit is based on the SVI formula, which is designed to usually produce curves that are valid according to conventional enonomic theory (but not always, so we also manually check for arbitrage).
-- Checks for valid bounds and butterfly arbitrage etc. are carried out during fitting in order to ensure an (economically) mathematically valid fit. In order to arrive at the best fit, we brute force starting guesses within reasonable ranges derived from the data.
+- Checks for valid bounds and butterfly arbitrage etc. are carried out during fitting in order to ensure an (economically) mathematically valid fit.
 - Under the hood, the use of the SVI formula actually produces a graph showing how total implied variance changes as log moneyness changes. This is not actually what we're interested in, but it's required to make the math work. We'll convert this back later.
 - The curves for each group are saved to file, as well as some other information about the smile and the options belonging to it that will help us when building the graphs later.
 
