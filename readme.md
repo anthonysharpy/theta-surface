@@ -131,7 +131,7 @@ _**build-graphs**_
 ## Recent Changes
 
 ### 20 Feb 2026
-- Replace the patience-based algorithm with a multi-layered grid search algorithm, which is 20x faster.
+- Replace the patience-based algorithm with a multi-layered grid search algorithm, which is 150x faster.
 - Simplify, tidy and optimise code.
 - Add defensive assertions and error checking to methods.
 - Show time elapsed when fitting graphs.
