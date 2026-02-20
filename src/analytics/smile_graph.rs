@@ -283,9 +283,6 @@ impl SmileGraph {
             println!("o={o_start} => {o_end}");
             println!("=====================================");
 
-            // How many points we will check along each parameter range.
-            let resolution = 4;
-
             let mut b = b_start;
             let mut p = p_start;
             let mut m = m_start;
@@ -294,7 +291,7 @@ impl SmileGraph {
             loop {
                 // Search for a better curve throughout this range until we reach the end.
                 let result = self.search_for_better_curve(
-                    b, p, m, o, b_start, p_start, m_start, o_start, b_end, p_end, m_end, o_end, best_error, resolution,
+                    b, p, m, o, b_start, p_start, m_start, o_start, b_end, p_end, m_end, o_end, best_error,
                 );
 
                 // Reached the end.
@@ -371,12 +368,14 @@ impl SmileGraph {
         m_end: f64,
         o_end: f64,
         current_best_error: f64,
-        resolution: u64,
     ) -> (bool, f64, SVICurveParameters, f64, f64, f64, f64) {
-        let b_step = (b_end - b_start) / resolution as f64;
-        let p_step = (p_end - p_start) / resolution as f64;
-        let m_step = (m_end - m_start) / resolution as f64;
-        let o_step = (o_end - o_start) / resolution as f64;
+        // How many points we will check along each parameter range.
+        const CURVE_SEARCH_PASS_RESOLUTION: f64 = 4.0;
+
+        let b_step = (b_end - b_start) / CURVE_SEARCH_PASS_RESOLUTION;
+        let p_step = (p_end - p_start) / CURVE_SEARCH_PASS_RESOLUTION;
+        let m_step = (m_end - m_start) / CURVE_SEARCH_PASS_RESOLUTION;
+        let o_step = (o_end - o_start) / CURVE_SEARCH_PASS_RESOLUTION;
 
         while b <= b_end {
             // Only print at the beginning of each b loop.
