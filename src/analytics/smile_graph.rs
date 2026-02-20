@@ -551,9 +551,10 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
     }
 
     fn residuals(&self) -> Option<Matrix<f64, Dyn, U1, Self::ResidualStorage>> {
-        let mut residuals: Vec<f64> = Vec::new();
+        let options_count = self.smile_graph.options.len();
+        let mut residuals: Vec<f64> = Vec::with_capacity(options_count);
 
-        for n in 0..self.smile_graph.options.len() {
+        for n in 0..options_count {
             // These params are garbage, push a very high loss.
             // We have already checked constants::VALIDATE_SVI by this point.
             if !self.curve_valid || self.has_arbitrage {
@@ -565,7 +566,7 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             residuals.push(self.residuals_buffer[n]);
         }
 
-        Some(Matrix::from_vec_generic(Dyn(residuals.len()), U1, residuals))
+        Some(Matrix::from_vec_generic(Dyn(options_count), U1, residuals))
     }
 
     fn jacobian(&self) -> Option<Matrix<f64, Dyn, U4, Self::JacobianStorage>> {
