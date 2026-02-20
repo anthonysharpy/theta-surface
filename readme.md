@@ -69,25 +69,25 @@ cd theta-surface
 2. Build the project.
 
 ```
-cargo build
+cargo build --release
 ```
 
 3. Download the latest market data. This is semi-optional as the software is packaged with data by default. However, since expired options are discarded, if you don't download fresh data then none of the included data might be useable. It can also cause some graphs to fail to be built. The data takes 5-10 minutes to download and is saved in `/data`.
 
 ```
-./target/debug/ThetaSurface fetch-market-data
+./target/release/ThetaSurface fetch-market-data
 ```
 
-4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`. Fitting takes 2-10 minutes on a lower-mid-range laptop, depending on the data.
+4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`.
 
 ```
-./target/debug/ThetaSurface build-surface
+./target/release/ThetaSurface build-surface
 ```
 
 5. Generate graphs showing the implied volatility against strike price for each option expiry. These are saved to `/data/graphs` as .png files.
 
 ```
-./target/debug/ThetaSurface build-graphs
+./target/release/ThetaSurface build-graphs
 ```
 
 ## How it works
@@ -105,8 +105,10 @@ _**build-surface**_
 - These options are then grouped by expiry. Typically, there will be a wide range of options with different strike prices for the same expiry.
 - A smile graph is constructed for each group. The smile graph will show how the (implied) volatility of the option changes as the strike price changes, which typically looks like a smile.
 - When creating and using the smile graph, we must determine a single forward price for the underlying (Bitcoin) per smile. Since we already normalised spot prices, they are all the same, so we just pick the first one. For consistency, we plug this into the same forward-price formula that we use for solving implied volatility.
-- Creating the smile graph ("fitting") involves using a guessing-based algorithm to find the most accurate curve that fits the data. In this case the Levenberg-Marquardt algorithm is used. The curve we fit is based on the SVI formula, which is designed to usually produce curves that are valid according to conventional enonomic theory (but not always, so we also manually check for arbitrage).
-- Checks for valid bounds and butterfly arbitrage etc. are carried out during fitting in order to ensure an (economically) mathematically valid fit. In order to arrive at the best fit, we brute force starting guesses within reasonable ranges derived from the data. We also use a patience-based method, where the algorithm makes faster leaps when it enters areas of no improvement.
+- Creating the smile graph ("fitting") involves using a guessing-based algorithm to find the most accurate curve that fits the data.
+- First, we use a multi-layered search that starts by roughly scanning the whole likely range of values and then honing in on the area where the optimal solution is found. This provides us starting values for the Levenberg-Marquardt algorithm, which is a form of gradient descent that helps us rapidly converge on the best solution.
+- The curve we fit is based on the SVI formula, which is designed to usually produce curves that are valid according to conventional enonomic theory (but not always, so we also manually check for arbitrage).
+- Checks for valid bounds and butterfly arbitrage etc. are carried out during fitting in order to ensure an (economically) mathematically valid fit. In order to arrive at the best fit, we brute force starting guesses within reasonable ranges derived from the data.
 - Under the hood, the use of the SVI formula actually produces a graph showing how total implied variance changes as log moneyness changes. This is not actually what we're interested in, but it's required to make the math work. We'll convert this back later.
 - The curves for each group are saved to file, as well as some other information about the smile and the options belonging to it that will help us when building the graphs later.
 
@@ -122,11 +124,17 @@ _**build-graphs**_
 ## Known limitations
 
 - Volatility is shown for calls and puts combined. It's probably more useful to have separate smiles for puts and calls. This can also cause distortions in the graph such that even curves that are "mathematically" optimised appear wrong to the eye. 
-- Fitting can be slow. I think there are still optimisations to be made here. An obvious one would be making it multi-threaded.
+- Fitting is pretty fast, but it could be faster. One obvious optimisation would be making it multi-threaded.
 - Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
 - More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.
 
 ## Recent Changes
+
+### 20 Feb 2026
+- Replace the patience-based algorithm with a multi-layered grid search algorithm, which is 20x faster.
+- Simplify, tidy and optimise code.
+- Add defensive assertions and error checking to methods.
+- Show time elapsed when fitting graphs.
 
 ### 12 Feb 2026
 - More careful error handling.

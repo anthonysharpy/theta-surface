@@ -4,18 +4,3 @@ black scholes explodes if volatility is 0
 fuzzing tests to test for crashes etc
 
 separate lines for put and call
-
-should we remove this check?
-
-// Do this even if constants::VALIDATE_SVI is false, because this will probably mess with the error function.
-    if result < 0.0001 {
-        return Err(TSError::new(
-            UnsolvableError,
-            format!("SVI variance less than zero is impossible (a={a}, b={b}, p={p}, m={m}, o={o})"),
-        ));
-    }
-
-
-
-this in console:
-Discarding an invalid option: Calculating total implied variance failed: Failed calculating implied volatility for instrument 589231: option_price (must be > 0, found 0)...
