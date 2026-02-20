@@ -566,23 +566,21 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             residuals.push(self.residuals_buffer[n]);
         }
 
-        Some(Matrix::from_vec_generic(Dyn(options_count), U1, residuals))
+        Some(OMatrix::<f64, Dyn, U1>::from_row_slice(&residuals))
     }
 
     fn jacobian(&self) -> Option<Matrix<f64, Dyn, U4, Self::JacobianStorage>> {
         let [b, p, m, o] = [self.p.x, self.p.y, self.p.z, self.p.w];
         let options_count = self.smile_graph.options.len();
-        let mut result = OMatrix::<f64, Dyn, U4>::zeros(options_count);
+        let mut result = Vec::<f64>::with_capacity(options_count * 4);
+
+        if self.has_arbitrage || !self.curve_valid {
+            // Curve is rubbish so just push 0 for everything to punish the algorithm.
+            return Some(OMatrix::<f64, Dyn, U4>::from_row_slice(&vec![0.0; options_count * 4]));
+        }
 
         // Build the Jacobians matrix.
-        for n in 0..options_count {
-            let option = &self.smile_graph.options[n];
-
-            // Curve is rubbish so just push 0 for everything to punish the algorithm.
-            if self.has_arbitrage || !self.curve_valid {
-                continue;
-            }
-
+        for option in &self.smile_graph.options {
             // d and s come directly from the SVI equation. By using them we make writing the derivatives below simpler.
             let d = option.get_log_moneyness_using_custom_forward(
                 self.smile_graph
@@ -596,10 +594,10 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             let deriv_m = b * (-p - (d / s));
             let deriv_o = b * (o / s);
 
-            result[(n, 0)] = deriv_b;
-            result[(n, 1)] = deriv_p;
-            result[(n, 2)] = deriv_m;
-            result[(n, 3)] = deriv_o;
+            result.push(deriv_b);
+            result.push(deriv_p);
+            result.push(deriv_m);
+            result.push(deriv_o);
         }
 
         // We also need to cancel out any vertical shift that's already accounted for by the manual change in a.
@@ -609,10 +607,10 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
         let mut mean_o = 0.0;
 
         for i in 0..options_count {
-            mean_b += result[(i, 0)];
-            mean_p += result[(i, 1)];
-            mean_m += result[(i, 2)];
-            mean_o += result[(i, 3)];
+            mean_b += result[i * 4];
+            mean_p += result[(i * 4) + 1];
+            mean_m += result[(i * 4) + 2];
+            mean_o += result[(i * 4) + 3];
         }
 
         mean_b /= options_count as f64;
@@ -621,12 +619,12 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
         mean_o /= options_count as f64;
 
         for i in 0..options_count {
-            result[(i, 0)] -= mean_b;
-            result[(i, 1)] -= mean_p;
-            result[(i, 2)] -= mean_m;
-            result[(i, 3)] -= mean_o;
+            result[i * 4] -= mean_b;
+            result[(i * 4) + 1] -= mean_p;
+            result[(i * 4) + 2] -= mean_m;
+            result[(i * 4) + 3] -= mean_o;
         }
 
-        Some(result)
+        Some(OMatrix::<f64, Dyn, U4>::from_row_slice(&result))
     }
 }
