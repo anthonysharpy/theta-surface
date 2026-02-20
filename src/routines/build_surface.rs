@@ -1,12 +1,16 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::time::Instant;
 
 use crate::analytics::{OptionInstrument, SmileGraph, SmileGraphsDataContainer};
+use crate::helpers::F64Helpers;
 use crate::integrations::DeribitDataContainer;
 use crate::types::TsError;
 use crate::{constants, fileio};
 
 pub fn build_surface() {
+    let start = Instant::now();
+
     println!("===============================================================");
     println!("===============================================================");
     println!("Building surface from downloaded data and saving to file");
@@ -31,6 +35,8 @@ pub fn build_surface() {
     println!("------------------------------");
 
     save_data_to_file(smile_graphs).unwrap_or_else(|e| panic!("Failed saving surface data to file: {}", e.reason));
+
+    println!("Surface built in {} seconds", start.elapsed().as_secs_f64().round_to_decimal_places(2));
     println!("===============================================================");
 }
 
