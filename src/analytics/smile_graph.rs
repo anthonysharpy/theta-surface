@@ -2,7 +2,7 @@ use std::{cell::Cell, f64::consts::E};
 
 use chrono::{DateTime, Utc};
 use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
-use nalgebra::{Dyn, Matrix, Owned, U1, U4, Vector4};
+use nalgebra::{Dyn, Matrix, OMatrix, Owned, U1, U4, Vector4};
 
 // Optimal step sizes for params when fitting SVI curve.
 const B_STEP: f64 = 0.01;
@@ -570,18 +570,15 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
 
     fn jacobian(&self) -> Option<Matrix<f64, Dyn, U4, Self::JacobianStorage>> {
         let [b, p, m, o] = [self.p.x, self.p.y, self.p.z, self.p.w];
-
-        type SVIJacobianMatrix = nalgebra::OMatrix<f64, Dyn, U4>;
-        let mut jacobians: Vec<f64> = Vec::new();
+        let options_count = self.smile_graph.options.len();
+        let mut result = OMatrix::<f64, Dyn, U4>::zeros(options_count);
 
         // Build the Jacobians matrix.
-        for option in &self.smile_graph.options {
+        for n in 0..options_count {
+            let option = &self.smile_graph.options[n];
+
             // Curve is rubbish so just push 0 for everything to punish the algorithm.
             if (self.has_arbitrage && constants::CHECK_FOR_ARBITRAGE) || !self.curve_valid {
-                jacobians.push(0.0);
-                jacobians.push(0.0);
-                jacobians.push(0.0);
-                jacobians.push(0.0);
                 continue;
             }
 
@@ -598,10 +595,10 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             let deriv_m = b * (-p - (d / s));
             let deriv_o = b * (o / s);
 
-            jacobians.push(deriv_b);
-            jacobians.push(deriv_p);
-            jacobians.push(deriv_m);
-            jacobians.push(deriv_o);
+            result[(n, 0)] = deriv_b;
+            result[(n, 1)] = deriv_p;
+            result[(n, 2)] = deriv_m;
+            result[(n, 3)] = deriv_o;
         }
 
         // We also need to cancel out any vertical shift that's already accounted for by the manual change in a.
@@ -609,33 +606,26 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
         let mut mean_p = 0.0;
         let mut mean_m = 0.0;
         let mut mean_o = 0.0;
-        let mut i = 0;
 
-        while i < jacobians.len() {
-            mean_b += jacobians[i];
-            mean_p += jacobians[i + 1];
-            mean_m += jacobians[i + 2];
-            mean_o += jacobians[i + 3];
-
-            i += 4;
+        for i in 0..options_count {
+            mean_b += result[(i, 0)];
+            mean_p += result[(i, 1)];
+            mean_m += result[(i, 2)];
+            mean_o += result[(i, 3)];
         }
 
-        mean_b /= self.smile_graph.options.len() as f64;
-        mean_p /= self.smile_graph.options.len() as f64;
-        mean_m /= self.smile_graph.options.len() as f64;
-        mean_o /= self.smile_graph.options.len() as f64;
+        mean_b /= options_count as f64;
+        mean_p /= options_count as f64;
+        mean_m /= options_count as f64;
+        mean_o /= options_count as f64;
 
-        i = 0;
-
-        while i < jacobians.len() {
-            jacobians[i] -= mean_b;
-            jacobians[i + 1] -= mean_p;
-            jacobians[i + 2] -= mean_m;
-            jacobians[i + 3] -= mean_o;
-
-            i += 4;
+        for i in 0..options_count {
+            result[(i, 0)] -= mean_b;
+            result[(i, 1)] -= mean_p;
+            result[(i, 2)] -= mean_m;
+            result[(i, 3)] -= mean_o;
         }
 
-        Some(SVIJacobianMatrix::from_row_slice(&jacobians))
+        Some(result)
     }
 }
