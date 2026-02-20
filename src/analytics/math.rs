@@ -341,7 +341,6 @@ pub fn has_butterfly_arbitrage(
             return Ok(false);
         }
 
-        //
         let strike = from_strike_f64 + (step_size * i);
         let log_moneyness = (strike / forward_price).ln();
         let x = log_moneyness - m;
