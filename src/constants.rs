@@ -23,23 +23,6 @@ pub const CHECK_FOR_ARBITRAGE: bool = true;
 /// Only process the smile with this timestamp (seconds). Useful for debugging.
 pub const ONLY_PROCESS_SMILE_DATE: Option<u64> = None;
 
-/// To speed up fitting, we increase the search step size if we can't find any new good fits. The higher this is, the more
-/// aggressively we increase the step size.
-/// A value of 1 results in no impatience. Above that the impatience increases exponentially, so it's best to be
-/// conservative when adjusting this.
-pub const SVI_FITTING_IMPATIENCE: f64 = 1.4;
-
-/// Where we are searching a data set whose optimal curve lies in a very small range, we'll disable impatience because
-/// it's unnecessary and can cause us to mis valid solutions.
-/// This number refers to the number of loop iterations that we have to search. If it's sufficiently small, we don't use
-/// impatience.
-pub const DISABLE_IMPATIENCE_BELOW_ITERATIONS: u64 = 2000;
-
-/// Caps the maximum impatience the algorithm can have, stopping it from skipping over potentially valid solutions.
-/// A maximum of e.g. 10 means the algorithm can go through a parameter at most 10 times as fast. However, there are four
-/// parameters in the fitting loop, so the maximum theoretical speedup is actually x^4 (i.e. 10,000x).
-pub const SVI_FITTING_MAX_IMPATIENCE: f64 = 5.0;
-
 /// If the error doesn't decrease by at least this much percent then we will treat a new curve as a non-improvement and ignore it.
 /// 0.01 = 1%.
 pub const SVI_FITTING_REQUIRED_IMPROVEMENT: f64 = 0.01;
