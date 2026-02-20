@@ -326,36 +326,46 @@ pub fn has_butterfly_arbitrage(
 
     let range = to_strike - from_strike;
     let step_size = range as f64 / resolution as f64;
+    let m = curve_params.get_m();
+    let b = curve_params.get_b();
+    let o = curve_params.get_o();
+    let p = curve_params.get_p();
+    let o_squared = o * o;
+    let from_strike_f64 = from_strike as f64;
+    let mut i = 0.0;
+    let resolution_f64 = resolution as f64;
 
     // We'll test lots of points along this graph and see if we can find any invalid spots. If we find any, there is arbitrage.
-    for i in 0..=resolution {
-        let strike = from_strike + (step_size * i as f64) as u64;
+    loop {
+        if i > resolution_f64 {
+            return Ok(false);
+        }
 
-        let log_moneyness = (strike as f64 / forward_price).ln();
-        let x = log_moneyness - curve_params.get_m();
-        let b = curve_params.get_b();
-        let o = curve_params.get_o();
-        let p = curve_params.get_p();
+        //
+        let strike = from_strike_f64 + (step_size * i);
+        let log_moneyness = (strike / forward_price).ln();
+        let x = log_moneyness - m;
+        let x_squared = x * x;
         let svi_variance = svi_variance(curve_params, log_moneyness)?;
-        let svi_variance_deriv1 = b * (p + (x / ((x * x) + (o * o)).sqrt()));
-        let svi_variance_deriv2 = b * ((o * o) / (((x * x) + (o * o)).powf(1.5)));
+        let svi_variance_deriv1 = b * (p + (x / (x_squared + o_squared).sqrt()));
+        let svi_variance_deriv2 = b * (o_squared / ((x_squared + o_squared).powf(1.5)));
 
         let mut part1 = 1.0 - ((log_moneyness * svi_variance_deriv1) / (2.0 * svi_variance));
         part1 *= part1;
 
-        let mut part2 = (svi_variance_deriv1 * svi_variance_deriv1) / 4.0;
+        let mut part2 = (svi_variance_deriv1 * svi_variance_deriv1) * 0.25;
         part2 *= (1.0 / svi_variance) + 0.25;
 
-        let part3 = svi_variance_deriv2 / 2.0;
+        let part3 = svi_variance_deriv2 * 0.5;
 
         let result = part1 - part2 + part3;
 
         if result < 0.0 {
             return Ok(true);
         }
-    }
 
-    Ok(false)
+        i += 1.0;
+    }
 }
 
 /// Calculate total variance using the stochastic volatility inspired model equation, which produces a smile shape.
