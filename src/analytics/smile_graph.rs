@@ -143,9 +143,10 @@ impl SmileGraph {
             // The initial guess for the SVI function.
             p: Vector4::new(params.get_b(), params.get_p(), params.get_m(), params.get_o()),
             smile_graph: self,
-            curve_valid: true,
+            curve_valid: false,
             has_arbitrage: false,
             curve: Some(SVICurveParameters::new_empty()),
+            residuals_buffer: vec![0.0; self.options.len()],
         };
 
         let initial_params = problem.p;
@@ -425,6 +426,7 @@ struct SVIProblem<'graph> {
     curve: Option<SVICurveParameters>,
     curve_valid: bool,
     has_arbitrage: bool,
+    residuals_buffer: Vec<f64>,
 }
 
 fn calculate_least_squares_residual(
@@ -455,47 +457,67 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
     // Common calculations for residuals and the Jacobian.
     fn set_params(&mut self, p: &Vector4<f64>) {
         self.p.copy_from(p);
-
-        let mut curve_valid = true;
-
         let svi_params = SVICurveParameters::new_from_values(0.0, self.p.x, self.p.y, self.p.z, self.p.w);
-
         let mut total_residuals = 0.0;
 
-        if let Ok(params) = &svi_params {
-            // We're going to average the residuals and then use this to manually calculate the best value for a. This is much
-            // more efficient and accurate. a is just a vertical offset, so this is simple to do.
-            for option in &self.smile_graph.options {
-                let residual = calculate_least_squares_residual(
-                    params,
-                    option,
-                    self.smile_graph
-                        .get_underlying_forward_price()
-                        .expect("Graph forward price must be valid"),
-                );
+        // Assume not valid.
+        self.has_arbitrage = false;
+        self.curve_valid = false;
+        self.curve = None;
 
-                if residual.is_err() {
-                    curve_valid = false;
-                    break;
+        // Calculate total residuals.
+        match &svi_params {
+            Ok(params) => {
+                // We're going to average the residuals and then use this to manually calculate the best value for a.
+                // This is much more efficient and accurate. a is just a vertical offset, so this is simple to do.
+                for option in &self.smile_graph.options {
+                    let residual = calculate_least_squares_residual(
+                        params,
+                        option,
+                        self.smile_graph
+                            .get_underlying_forward_price()
+                            .expect("Graph forward price must be valid"),
+                    );
+
+                    match residual {
+                        Err(_) => {
+                            // If our curve is already invalid then it's probably best to give up.
+                            return;
+                        }
+                        Ok(v) => total_residuals += v,
+                    };
                 }
-
-                total_residuals += residual.unwrap();
             }
+            Err(_) => return,
         }
 
+        // Get "a" parameter based on average residuals.
         let average_residual = total_residuals / self.smile_graph.options.len() as f64;
         let svi_params = SVICurveParameters::new_from_values(-average_residual, self.p.x, self.p.y, self.p.z, self.p.w);
 
-        self.curve_valid = curve_valid && svi_params.is_ok();
+        // Check these parameters are okay.
+        match svi_params {
+            Err(_) => return,
+            Ok(v) => self.curve = Some(v),
+        }
 
-        self.curve = match self.curve_valid {
-            true => Some(svi_params.unwrap()),
-            false => None,
-        };
+        // Check validity by building residuals. We'll save these because we'll use them again in residuals().
+        for (n, option) in self.smile_graph.options.iter().enumerate() {
+            let residual = calculate_least_squares_residual(
+                self.curve.as_ref().unwrap(),
+                option,
+                self.smile_graph
+                    .get_underlying_forward_price()
+                    .expect("Graph forward price must be valid"),
+            );
 
-        self.has_arbitrage = false;
+            match residual {
+                Ok(v) => self.residuals_buffer[n] = v,
+                Err(_) => return,
+            }
+        }
 
-        if self.curve_valid && constants::CHECK_FOR_ARBITRAGE {
+        if constants::CHECK_FOR_ARBITRAGE {
             // If there is arbitrage then this curve is mathematically invalid. Fail it.
             let butterfly_arbitrage_found = has_butterfly_arbitrage(
                 self.curve.as_ref().unwrap(),
@@ -507,35 +529,21 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
                 150,
             );
 
-            if let Ok(has_arbitrage) = butterfly_arbitrage_found {
-                self.has_arbitrage = has_arbitrage;
-            } else {
-                self.curve_valid = false;
-                self.curve = None;
+            match butterfly_arbitrage_found {
+                Err(_) => return,
+                Ok(has_arbitrage) => {
+                    if has_arbitrage {
+                        self.has_arbitrage = true;
+                        return;
+                    }
+                }
             }
 
             // We should also be checking for calendar arbitrage, but since this software just handles discrete expiry slices,
             // we'll overlook it for now.
         }
 
-        // We need to check validity again with the new a.
-        if self.curve_valid {
-            for option in &self.smile_graph.options {
-                let still_valid = calculate_least_squares_residual(
-                    self.curve.as_ref().unwrap(),
-                    option,
-                    self.smile_graph
-                        .get_underlying_forward_price()
-                        .expect("Graph forward price must be valid"),
-                )
-                .is_ok();
-
-                if !still_valid {
-                    self.curve_valid = false;
-                    break;
-                }
-            }
-        }
+        self.curve_valid = true;
     }
 
     fn params(&self) -> Vector4<f64> {
@@ -545,24 +553,16 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
     fn residuals(&self) -> Option<Matrix<f64, Dyn, U1, Self::ResidualStorage>> {
         let mut residuals: Vec<f64> = Vec::new();
 
-        for option in &self.smile_graph.options {
+        for n in 0..self.smile_graph.options.len() {
             // These params are garbage, push a very high loss.
             // We have already checked constants::VALIDATE_SVI by this point.
-            if !self.curve_valid || (self.has_arbitrage && constants::CHECK_FOR_ARBITRAGE) {
+            if !self.curve_valid || self.has_arbitrage {
                 residuals.push(constants::INVALID_FIT_PENALITY);
                 continue;
             }
 
-            let residual = calculate_least_squares_residual(
-                self.curve.as_ref().unwrap(),
-                option,
-                self.smile_graph
-                    .get_underlying_forward_price()
-                    .expect("Graph forward price must be valid"),
-            )
-            .expect("We should already have checked this already in set_params()");
-
-            residuals.push(residual);
+            // Use the residual we saved earlier.
+            residuals.push(self.residuals_buffer[n]);
         }
 
         Some(Matrix::from_vec_generic(Dyn(residuals.len()), U1, residuals))
@@ -578,7 +578,7 @@ impl LeastSquaresProblem<f64, Dyn, U4> for SVIProblem<'_> {
             let option = &self.smile_graph.options[n];
 
             // Curve is rubbish so just push 0 for everything to punish the algorithm.
-            if (self.has_arbitrage && constants::CHECK_FOR_ARBITRAGE) || !self.curve_valid {
+            if self.has_arbitrage || !self.curve_valid {
                 continue;
             }
 
