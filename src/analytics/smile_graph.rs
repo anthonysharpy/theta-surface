@@ -34,7 +34,7 @@ impl SmileGraph {
     pub fn new() -> SmileGraph {
         SmileGraph {
             options: Vec::new(),
-            svi_curve_parameters: SVICurveParameters::new_empty(),
+            svi_curve_parameters: SVICurveParameters::default(),
             has_been_fit: false,
             underlying_forward_price: Cell::new(None),
             highest_observed_implied_volatility: f64::MIN,
@@ -139,7 +139,7 @@ impl SmileGraph {
             smile_graph: self,
             curve_valid: false,
             has_arbitrage: false,
-            curve: Some(SVICurveParameters::new_empty()),
+            curve: Some(SVICurveParameters::default()),
             residuals_buffer: vec![0.0; self.options.len()],
         };
 
@@ -225,7 +225,7 @@ impl SmileGraph {
         let default_o_range = default_o_end - default_o_start;
 
         // It's impossible for a curve to not be found because this is already a valid curve (I think).
-        let mut best_curve: SVICurveParameters = SVICurveParameters::new_empty();
+        let mut best_curve: SVICurveParameters = SVICurveParameters::default();
         let mut best_error: f64 = f64::MAX;
         let mut pass = 1;
 
@@ -429,7 +429,7 @@ impl SmileGraph {
             b += b_step;
         }
 
-        (true, 0.0, SVICurveParameters::new_empty(), 0.0, 0.0, 0.0, 0.0)
+        (true, 0.0, SVICurveParameters::default(), 0.0, 0.0, 0.0, 0.0)
     }
 
     /// Checks if this smile graph is valid and generally safe for use. If not, a string error is returned with a reason.

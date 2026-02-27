@@ -15,9 +15,8 @@ pub struct SVICurveParameters {
     o: f64,
 }
 
-impl SVICurveParameters {
-    /// Create a new and empty instance (everything set to near 0).
-    pub fn new_empty() -> Self {
+impl Default for SVICurveParameters {
+    fn default() -> Self {
         let params = SVICurveParameters {
             a: 0.0001,
             b: 0.0002,
@@ -30,7 +29,9 @@ impl SVICurveParameters {
 
         params
     }
+}
 
+impl SVICurveParameters {
     pub fn new_from_values(a: f64, b: f64, p: f64, m: f64, o: f64) -> Result<Self, TsError> {
         let params = SVICurveParameters { a, b, p, m, o };
 
