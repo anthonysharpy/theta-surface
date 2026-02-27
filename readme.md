@@ -75,19 +75,19 @@ cargo build --release
 3. Download the latest market data. This is semi-optional as the software is packaged with data by default. However, since expired options are discarded, if you don't download fresh data then none of the included data might be useable. It can also cause some graphs to fail to be built. The data takes 5-10 minutes to download and is saved in `/data`.
 
 ```
-./target/release/ThetaSurface fetch-market-data
+cargo run --release fetch-market-data
 ```
 
 4. Fit the volatility surface for the downloaded data. This data is also saved in `/data`.
 
 ```
-./target/release/ThetaSurface build-surface
+cargo run --release build-surface
 ```
 
 5. Generate graphs showing the implied volatility against strike price for each option expiry. These are saved to `/data/graphs` as .png files.
 
 ```
-./target/release/ThetaSurface build-graphs
+cargo run --release build-graphs
 ```
 
 ## How it works
