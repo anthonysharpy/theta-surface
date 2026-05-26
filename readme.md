@@ -6,7 +6,16 @@ The purpose of this is to demonstrate the implementation of complex market-based
 
 ## Graph explanation
 
-![Graph](./images/example-smile-graph.png)
+<table>
+  <tr>
+    <td><img src="./images/example-smile-graph1.png" alt="Graph 1" width="400"></td>
+    <td><img src="./images/example-smile-graph2.png" alt="Graph 2" width="400"></td>
+  </tr>
+  <tr>
+    <td><img src="./images/example-smile-graph3.png" alt="Graph 3" width="400"></td>
+    <td><img src="./images/example-smile-graph4.png" alt="Graph 4" width="400"></td>
+  </tr>
+</table>
 
 - **Extrapolated data**: The extrapolated part of the smile curve.
 - **Observed data**: The smile curve representing the range of data that we actually observed.
