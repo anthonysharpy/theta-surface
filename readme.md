@@ -121,12 +121,12 @@ _**build-graphs**_
 - Once constructed, these graphs are saved to file.
 - These graphs are then useful for things such as efficiently pricing options at any given strike price, accurately analysing the market when other data is noisy, validating that other market data is accurate and tracking changes in risk and uncertainty over time.
 
-## Known limitations
+## Limitations
 
-- Volatility is shown for calls and puts combined. It's probably more useful to have separate smiles for puts and calls. This can also cause distortions in the graph such that even curves that are "mathematically" optimised appear wrong to the eye. 
-- Fitting is pretty fast, but it could be faster. One obvious optimisation would be making it multi-threaded.
-- Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
-- More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.
+- **IV differs for puts and calls**. Theoretically, a put and call at the same strike price and expiry should exhibit the same implied volatility. However, since the risk-free interest rate is (incorrectly) always assumed to be 6%, the two diverge. Fixing this would involve calculating the correct risk-free interest rate for each expiry - maybe using futures prices - but this is not something that's been implemented yet.   
+- **Fitting speed**. Fitting is pretty fast, but it could be faster. One obvious optimisation would be making it multi-threaded.
+- **Data quality checks**. Poor-quality data (e.g. options with weird prices) is not removed, which can negatively affect the overall fit.
+- **Tests**. More tests are needed. The basic mathematical pieces like the implied volatility calculations have tests, but there is a lack of tests in other places. This project already took a long time to put together, and I just don't fancy spending days writing tests for it all. Thankfully though the program is mostly self-testing since it displays most things on the graph, which can be checked manually.
 
 ## Recent Changes
 
