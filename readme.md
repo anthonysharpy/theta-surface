@@ -20,7 +20,7 @@ The purpose of this is to demonstrate the implementation of complex market-based
 - **Extrapolated data**: The extrapolated part of the smile curve.
 - **Observed data**: The smile curve representing the range of data that we actually observed.
 - **Smile-relative implied volatility**: The implied volatility of an option acccording to the fitted smile curve.
-- **Self-relative implied volatility**: The actual implied volatility of an option according to its own data. Basically, this is what the curve is trying to fit. Multiple of these on the same strike usually implies a put/call pair. If these show a trend that differs greatly from the curve, it implies that the curve was badly fit.
+- **Self-relative implied volatility**: The actual implied volatility of an option according to its own data. Basically, this is what the curve is trying to fit. Multiple of these on the same strike usually implies a put/call pair (although, see limitations section). If these show a trend that differs greatly from the curve, it implies that the curve was badly fit.
 - **Forward-price**: The forward price of the asset.
 
 ## Maths
